@@ -556,13 +556,13 @@ Every milestone ends **green**: `.\gradlew.bat assembleDebug testDebugUnitTest` 
   - same PNR → Updated (id, links and notes kept; old file deleted)
   - missing PNR → NeedsReview
   - extractor returns null → NeedsReview, with the PDF kept
-- [ ] **M4.5** `ImportManager` with phase A copying immediately and phase B sequential. `StateFlow` items. JVM test with fakes and `StandardTestDispatcher`.
+- [x] **M4.5** `ImportManager` with phase A copying immediately and phase B sequential. `StateFlow` items. JVM test with fakes and `StandardTestDispatcher`.
 
 ### M5: UI
-- [ ] **M5.1** `Routes` (`@Serializable`), `AppNavHost`, and `MainActivity`, with intent handling (share, open-with) → enqueue → navigate to Import.
-- [ ] **M5.2** `Formatters` with JVM tests (IST formatting, duration, countdown strings, money "₹1,494.05").
-- [ ] **M5.3** Home screen and `HomeViewModel`: next-journey hero, needs-review, upcoming and past by month, empty state, and the FAB menu wired to `OpenMultipleDocuments`. Add `@Preview`s with fake data for every card.
-- [ ] **M5.4** Import screen and ViewModel.
+- [x] **M5.1** `Routes` (`@Serializable`), `AppNavHost`, and `MainActivity`, with intent handling (share, open-with) → enqueue → navigate to Import.
+- [x] **M5.2** `Formatters` with JVM tests (IST formatting, duration, countdown strings, money "₹1,494.05").
+- [x] **M5.3** Home screen and `HomeViewModel`: next-journey hero, needs-review, upcoming and past by month, empty state, and the FAB menu wired to `OpenMultipleDocuments`. Add `@Preview`s with fake data for every card.
+- [x] **M5.4** Import screen and ViewModel.
 - [ ] **M5.5** Trip detail screen and ViewModel: legs, passengers, PNR copy, Go to ticket, Share, Edit, Cancel toggle, Delete confirm, Unlink, Link-return sheet, and Reset to automatic.
 - [ ] **M5.6** Edit ticket screen and ViewModel: edit and create modes, the passenger editor, date and time pickers, and validation.
 - [ ] **M5.7** `TicketActions`: open the PDF externally (with the ActivityNotFound fallback) and share.
@@ -728,3 +728,4 @@ Put real PDFs in `samples/` (gitignored) and push them with `adb push samples/ /
 ## 9. Progress log
 <!-- Append one line per finished task: YYYY-MM-DD HH:MM · task id · summary · tests added -->
 - 2026-10-11 22:30 · M0–M4.4 · Project setup, parser/grouping/data/extraction/importer on branch feature/plan-implementation · IrctcErsParserTest, TripGrouperTest, MappersTest, TicketImporterTest, etc.
+- 2026-10-11 22:45 · M4.5–M5.4 · ImportManager, navigation, Home/Import MVVM, Trip detail stub · FormattersTest

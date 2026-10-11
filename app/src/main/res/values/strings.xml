@@ -1,3 +1,28 @@
 <resources>
     <string name="app_name">Trip Checker</string>
+    <string name="add_ticket">Add ticket</string>
+    <string name="import_pdfs">Import PDFs</string>
+    <string name="add_manually">Add manually</string>
+    <string name="needs_review">Needs review</string>
+    <string name="needs_review_row">Ticket from %1$s — tap to fill missing details</string>
+    <string name="upcoming">Upcoming</string>
+    <string name="empty_home_message">Import your IRCTC ticket PDFs</string>
+    <string name="round_trip">Round trip</string>
+    <string name="one_way">One way</string>
+    <string name="custom_trip">Custom</string>
+    <string name="import_screen_title">Import</string>
+    <string name="done">Done</string>
+    <string name="import_queued">Queued</string>
+    <string name="import_reading">Reading…</string>
+    <string name="import_saved">Saved</string>
+    <string name="import_updated">Updated</string>
+    <string name="import_duplicate">Already imported</string>
+    <string name="import_needs_review">Needs review</string>
+    <string name="trip_detail_title">Trip</string>
+    <string name="trip_not_found">Ticket not found</string>
+    <string name="back">Back</string>
+    <string name="edit">Edit</string>
+    <string name="edit_ticket_title">Edit ticket</string>
+    <string name="edit_create_placeholder">Manual ticket form (coming soon)</string>
+    <string name="edit_ticket_placeholder">Editing ticket %1$s (form coming soon)</string>
 </resources>

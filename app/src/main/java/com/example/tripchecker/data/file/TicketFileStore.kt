@@ -13,7 +13,7 @@ import java.security.MessageDigest
 /** Copies ticket PDFs into app-private storage and tracks SHA-256. */
 class TicketFileStore(
     private val context: Context,
-) : TicketFileOperations {
+) : TicketFileOperations, TicketUriStager {
     private val ticketsDir: File
         get() = File(context.filesDir, "tickets").also { it.mkdirs() }
 
@@ -24,7 +24,7 @@ class TicketFileStore(
         val sizeBytes: Long,
     )
 
-    suspend fun importFromUri(uri: Uri): StagedFile =
+    override suspend fun importFromUri(uri: Uri): StagedFile =
         withContext(Dispatchers.IO) {
             val originalName = queryDisplayName(uri) ?: "ticket.pdf"
             val temp = File(ticketsDir, "staging-${System.nanoTime()}.pdf")

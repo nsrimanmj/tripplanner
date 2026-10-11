@@ -1,0 +1,72 @@
+package com.example.tripchecker.ui.navigation
+
+import androidx.compose.runtime.Composable
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
+import com.example.tripchecker.di.AppContainer
+import com.example.tripchecker.ui.home.HomeScreen
+import com.example.tripchecker.ui.home.HomeViewModel
+import com.example.tripchecker.ui.importflow.ImportScreen
+import com.example.tripchecker.ui.importflow.ImportViewModel
+import com.example.tripchecker.ui.trip.TripDetailScreen
+import com.example.tripchecker.ui.trip.TripDetailViewModel
+import com.example.tripchecker.ui.edit.EditTicketScreen
+
+@Composable
+fun AppNavHost(
+    container: AppContainer,
+    navController: NavHostController = rememberNavController(),
+    startOnImport: Boolean = false,
+    onPdfsSelected: (List<android.net.Uri>) -> Unit,
+) {
+    if (startOnImport) {
+        androidx.compose.runtime.LaunchedEffect(Unit) {
+            navController.navigate(Import)
+        }
+    }
+    NavHost(navController = navController, startDestination = Home) {
+        composable<Home> {
+            val vm: HomeViewModel = viewModel(factory = container.viewModelFactory)
+            HomeScreen(
+                viewModel = vm,
+                onOpenTrip = { navController.navigate(TripDetail(it)) },
+                onEditTicket = { navController.navigate(EditTicket(it)) },
+                onPdfsSelected = { uris ->
+                    onPdfsSelected(uris)
+                    navController.navigate(Import)
+                },
+                onAddManual = { navController.navigate(EditTicket(null)) },
+            )
+        }
+        composable<Import> {
+            val vm: ImportViewModel = viewModel(factory = container.viewModelFactory)
+            ImportScreen(
+                viewModel = vm,
+                onDone = { navController.popBackStack() },
+                onOpenTrip = { navController.navigate(TripDetail(it)) },
+                onEditTicket = { navController.navigate(EditTicket(it)) },
+            )
+        }
+        composable<TripDetail> { entry ->
+            val route = entry.toRoute<TripDetail>()
+            val vm: TripDetailViewModel =
+                viewModel(factory = TripDetailViewModel.Factory(container, route.anchorTicketId))
+            TripDetailScreen(
+                viewModel = vm,
+                onBack = { navController.popBackStack() },
+                onEdit = { navController.navigate(EditTicket(it)) },
+            )
+        }
+        composable<EditTicket> { entry ->
+            val route = entry.toRoute<EditTicket>()
+            EditTicketScreen(
+                ticketId = route.ticketId,
+                onBack = { navController.popBackStack() },
+            )
+        }
+    }
+}

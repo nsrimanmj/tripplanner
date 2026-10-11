@@ -11,7 +11,10 @@ import com.example.tripchecker.extraction.CompositeTextExtractor
 import com.example.tripchecker.extraction.OcrTextExtractor
 import com.example.tripchecker.extraction.PdfBoxTextExtractor
 import com.example.tripchecker.extraction.parser.IrctcErsParser
+import com.example.tripchecker.importer.ImportManager
 import com.example.tripchecker.importer.TicketImporter
+import android.net.Uri
+import androidx.lifecycle.ViewModelProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -53,4 +56,17 @@ class AppContainer(
         )
 
     val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    val importManager: ImportManager =
+        ImportManager(
+            fileStore = ticketFileStore,
+            importer = ticketImporter,
+            scope = appScope,
+        )
+
+    val viewModelFactory: ViewModelProvider.Factory = createViewModelFactory(this)
+
+    fun enqueueImports(uris: List<Uri>) {
+        importManager.enqueue(uris)
+    }
 }
