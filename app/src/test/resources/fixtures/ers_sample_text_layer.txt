@@ -1,0 +1,22 @@
+Electronic Reservation Slip (ERS)-Normal User
+Booked From Boarding At To
+SAINAGAR SHIRDI (SNSI) SAINAGAR SHIRDI (SNSI) BEGAMPET (BMT)
+Start Date* 03-Aug-2026 Departure* 17:00 03-Aug-2026 Arrival* 07:59 04-Aug-2026
+PNR Train No./Name Class
+8751652729 17001 / SNSI SC EXPRESS THIRD AC (3A)
+Quota Distance Booking Date
+TATKAL (TQ) 772 KM 02-Aug-2026 10:01:50 HRS
+Passenger Details
+# Name Age Gender Booking Status Current Status
+1. MADHURI 26 F CNF/B4/33/LOWER CNF /B4/33/LOWER
+Acronyms: RLWL: REMOTE LOCATION WAITLIST PQWL: POOLED QUOTA WAITLIST RSWL: ROAD-SIDE WAITLIST
+Transaction ID: 100006745112096
+IR recovers only 57% of cost of travel on an average.
+Payment Details
+Ticket Fare ₹ 1,470.00
+IRCTC Convenience Fee (Incl. of GST) ₹ 23.60
+Travel Insurance Premium (Incl. of GST) ₹ 0.45
+Total Fare (all inclusive) ₹ 1,494.05
+PG Charges as applicable (Additional)
+Beware of fraudulent customer care number. For any assistance, use only the IRCTC e-ticketing Customer care number:14646.
+Customer Support (Outside India): Call: +91-8044647999 / +91-8035734999

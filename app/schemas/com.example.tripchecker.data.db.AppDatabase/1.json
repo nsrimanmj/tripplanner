@@ -1,0 +1,340 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "e335b19fa47bf98f5999ad768b2df491",
+    "entities": [
+      {
+        "tableName": "tickets",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `pnr` TEXT, `trainNumber` TEXT, `trainName` TEXT, `fromCode` TEXT, `fromName` TEXT, `boardingCode` TEXT, `boardingName` TEXT, `toCode` TEXT, `toName` TEXT, `startDate` TEXT, `departureAt` INTEGER, `arrivalAt` INTEGER, `travelClass` TEXT, `classLabel` TEXT, `quota` TEXT, `quotaLabel` TEXT, `distanceKm` INTEGER, `bookedAt` INTEGER, `transactionId` TEXT, `totalFarePaise` INTEGER, `pdfFileName` TEXT, `pdfSha256` TEXT, `originalFileName` TEXT, `extractionMethod` TEXT NOT NULL, `needsReview` INTEGER NOT NULL, `linkGroupId` TEXT, `autoPairDisabled` INTEGER NOT NULL, `isCancelled` INTEGER NOT NULL, `notes` TEXT, `rawText` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pnr",
+            "columnName": "pnr",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "trainNumber",
+            "columnName": "trainNumber",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "trainName",
+            "columnName": "trainName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "fromCode",
+            "columnName": "fromCode",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "fromName",
+            "columnName": "fromName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "boardingCode",
+            "columnName": "boardingCode",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "boardingName",
+            "columnName": "boardingName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "toCode",
+            "columnName": "toCode",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "toName",
+            "columnName": "toName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "startDate",
+            "columnName": "startDate",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "departureAt",
+            "columnName": "departureAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "arrivalAt",
+            "columnName": "arrivalAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "travelClass",
+            "columnName": "travelClass",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "classLabel",
+            "columnName": "classLabel",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "quota",
+            "columnName": "quota",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "quotaLabel",
+            "columnName": "quotaLabel",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "distanceKm",
+            "columnName": "distanceKm",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "bookedAt",
+            "columnName": "bookedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "transactionId",
+            "columnName": "transactionId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "totalFarePaise",
+            "columnName": "totalFarePaise",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "pdfFileName",
+            "columnName": "pdfFileName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "pdfSha256",
+            "columnName": "pdfSha256",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "originalFileName",
+            "columnName": "originalFileName",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "extractionMethod",
+            "columnName": "extractionMethod",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "needsReview",
+            "columnName": "needsReview",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "linkGroupId",
+            "columnName": "linkGroupId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "autoPairDisabled",
+            "columnName": "autoPairDisabled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isCancelled",
+            "columnName": "isCancelled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "rawText",
+            "columnName": "rawText",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_tickets_pnr",
+            "unique": true,
+            "columnNames": [
+              "pnr"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_tickets_pnr` ON `${TABLE_NAME}` (`pnr`)"
+          },
+          {
+            "name": "index_tickets_pdfSha256",
+            "unique": true,
+            "columnNames": [
+              "pdfSha256"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_tickets_pdfSha256` ON `${TABLE_NAME}` (`pdfSha256`)"
+          },
+          {
+            "name": "index_tickets_departureAt",
+            "unique": false,
+            "columnNames": [
+              "departureAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_tickets_departureAt` ON `${TABLE_NAME}` (`departureAt`)"
+          },
+          {
+            "name": "index_tickets_linkGroupId",
+            "unique": false,
+            "columnNames": [
+              "linkGroupId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_tickets_linkGroupId` ON `${TABLE_NAME}` (`linkGroupId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "passengers",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `ticketId` TEXT NOT NULL, `serial` INTEGER NOT NULL, `name` TEXT NOT NULL, `age` INTEGER, `gender` TEXT, `bookingStatusRaw` TEXT, `currentStatusRaw` TEXT, `statusCode` TEXT, `coach` TEXT, `berthNumber` INTEGER, `berthType` TEXT, `waitlistNumber` INTEGER, PRIMARY KEY(`id`), FOREIGN KEY(`ticketId`) REFERENCES `tickets`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ticketId",
+            "columnName": "ticketId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "serial",
+            "columnName": "serial",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "age",
+            "columnName": "age",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "gender",
+            "columnName": "gender",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "bookingStatusRaw",
+            "columnName": "bookingStatusRaw",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "currentStatusRaw",
+            "columnName": "currentStatusRaw",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "statusCode",
+            "columnName": "statusCode",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "coach",
+            "columnName": "coach",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "berthNumber",
+            "columnName": "berthNumber",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "berthType",
+            "columnName": "berthType",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "waitlistNumber",
+            "columnName": "waitlistNumber",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_passengers_ticketId",
+            "unique": false,
+            "columnNames": [
+              "ticketId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_passengers_ticketId` ON `${TABLE_NAME}` (`ticketId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "tickets",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "ticketId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'e335b19fa47bf98f5999ad768b2df491')"
+    ]
+  }
+}

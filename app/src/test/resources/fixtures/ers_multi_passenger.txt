@@ -1,0 +1,19 @@
+Electronic Reservation Slip (ERS)-Normal User
+Booked From Boarding At To
+SECUNDERABAD JN (SC) LINGAMPALLI (LPI) SAINAGAR SHIRDI (SNSI)
+Start Date* 10-Aug-2026 Departure* 21:40 10-Aug-2026 Arrival* N.A.
+PNR Train No./Name Class
+4523198760 17002 / SC SNSI EXPRESS SLEEPER CLASS (SL)
+Quota Distance Booking Date
+GENERAL (GN) 690 KM 15-Jun-2026 08:00:12 HRS
+Passenger Details
+# Name Age Gender Booking Status Current Status
+1. RAVI KUMAR 34 M CNF/S7/49/SIDE UPPER CNF/S7/49/SIDE UPPER
+2. ANITA 31 F RLWL/12 RLWL/5
+3. ARJUN 8 M RAC/23 RAC/S2/71/SIDE LOWER
+4. MEERA 60 F WL/40 CAN
+Acronyms: RLWL: REMOTE LOCATION WAITLIST PQWL: POOLED QUOTA WAITLIST RSWL: ROAD-SIDE WAITLIST
+Transaction ID: 100006799887766
+Payment Details
+Ticket Fare ₹ 2,140.00
+Total Fare (all inclusive) ₹ 2,163.60
