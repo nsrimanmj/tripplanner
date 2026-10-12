@@ -3,7 +3,7 @@ package com.example.tripchecker.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.tripchecker.data.repo.TicketRepository
-import com.example.tripchecker.domain.ObserveJourneysUseCase
+import com.example.tripchecker.domain.grouping.TripGrouper
 import com.example.tripchecker.domain.model.JourneyGroup
 import com.example.tripchecker.domain.model.Ticket
 import kotlinx.coroutines.delay
@@ -40,24 +40,21 @@ data class PastMonthGroup(
 )
 
 class HomeViewModel(
-    observeJourneys: ObserveJourneysUseCase,
     private val repository: TicketRepository,
     private val clock: Clock,
 ) : ViewModel() {
     private val ticker =
         flow {
+            emit(clock.instant())
             while (true) {
-                emit(clock.instant())
                 delay(60_000)
+                emit(clock.instant())
             }
         }
 
     val uiState: StateFlow<HomeUiState> =
-        combine(
-            observeJourneys.observe(),
-            repository.observeTickets(),
-            ticker,
-        ) { groups, tickets, now ->
+        combine(repository.observeTickets(), ticker) { tickets, now ->
+            val groups = TripGrouper.group(tickets, now)
             HomeUiMapper.map(groups, tickets, now)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 }

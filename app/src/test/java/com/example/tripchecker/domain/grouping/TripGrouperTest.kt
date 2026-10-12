@@ -25,6 +25,23 @@ class TripGrouperTest {
     }
 
     @Test
+    fun `return exactly 14 days later pairs`() {
+        val outbound = ticket("o", "SNSI", "BMT", instant(2026, 8, 1, 10, 0))
+        val ret = ticket("r", "BMT", "SNSI", instant(2026, 8, 15, 10, 0))
+        val groups = TripGrouper.group(listOf(outbound, ret), instant(2026, 8, 1, 0, 0))
+        assertEquals(1, groups.size)
+        assertEquals(JourneyKind.ROUND_TRIP, groups[0].kind)
+    }
+
+    @Test
+    fun `return 14 days and one minute later stays one way`() {
+        val outbound = ticket("o", "SNSI", "BMT", instant(2026, 8, 1, 10, 0))
+        val ret = ticket("r", "BMT", "SNSI", instant(2026, 8, 15, 10, 1))
+        val groups = TripGrouper.group(listOf(outbound, ret), instant(2026, 8, 1, 0, 0))
+        assertEquals(2, groups.count { it.kind == JourneyKind.ONE_WAY })
+    }
+
+    @Test
     fun `return beyond 14 days stays one way`() {
         val outbound = ticket("o", "SNSI", "BMT", instant(2026, 8, 3, 17, 0))
         val ret = ticket("r", "BMT", "SNSI", instant(2026, 8, 20, 21, 0))

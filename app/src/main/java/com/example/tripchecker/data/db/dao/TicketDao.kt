@@ -1,9 +1,11 @@
 package com.example.tripchecker.data.db.dao
 
 import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
-import androidx.room.Upsert
+import androidx.room.Update
 import com.example.tripchecker.data.db.entity.PassengerEntity
 import com.example.tripchecker.data.db.entity.TicketEntity
 import com.example.tripchecker.data.db.relation.TicketWithPassengers
@@ -20,6 +22,10 @@ interface TicketDao {
     @Query("SELECT * FROM tickets WHERE id = :id")
     fun observeById(id: String): Flow<TicketWithPassengers?>
 
+    @Transaction
+    @Query("SELECT * FROM tickets WHERE id = :id")
+    suspend fun getWithPassengersById(id: String): TicketWithPassengers?
+
     @Query("SELECT * FROM tickets WHERE pnr = :pnr LIMIT 1")
     suspend fun getByPnr(pnr: String): TicketEntity?
 
@@ -29,18 +35,24 @@ interface TicketDao {
     @Query("SELECT rawText FROM tickets WHERE id = :id")
     suspend fun getRawText(id: String): String?
 
-    @Upsert
-    suspend fun upsertTicket(ticket: TicketEntity)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertTicket(ticket: TicketEntity)
+
+    @Update
+    suspend fun updateTicket(ticket: TicketEntity): Int
 
     @Query("DELETE FROM passengers WHERE ticketId = :ticketId")
     suspend fun deletePassengersForTicket(ticketId: String)
 
-    @Upsert
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertPassengers(passengers: List<PassengerEntity>)
 
     @Transaction
     suspend fun upsertWithPassengers(ticket: TicketEntity, passengers: List<PassengerEntity>) {
-        upsertTicket(ticket)
+        val rows = updateTicket(ticket)
+        if (rows == 0) {
+            insertTicket(ticket)
+        }
         deletePassengersForTicket(ticket.id)
         if (passengers.isNotEmpty()) insertPassengers(passengers)
     }
@@ -48,9 +60,15 @@ interface TicketDao {
     @Query("DELETE FROM tickets WHERE id = :id")
     suspend fun deleteById(id: String)
 
+    @Query("SELECT id FROM tickets WHERE linkGroupId = :groupId")
+    suspend fun getIdsInLinkGroup(groupId: String): List<String>
+
     @Query("UPDATE tickets SET linkGroupId = :groupId, autoPairDisabled = :autoPairDisabled, updatedAt = :updatedAt WHERE id IN (:ids)")
     suspend fun setLinkGroup(ids: List<String>, groupId: String?, autoPairDisabled: Boolean, updatedAt: Instant)
 
     @Query("UPDATE tickets SET isCancelled = :value, updatedAt = :updatedAt WHERE id = :id")
     suspend fun setCancelled(id: String, value: Boolean, updatedAt: Instant)
+
+    @Query("UPDATE tickets SET linkGroupId = NULL, updatedAt = :updatedAt WHERE id IN (:ids)")
+    suspend fun clearLinkGroup(ids: List<String>, updatedAt: Instant)
 }

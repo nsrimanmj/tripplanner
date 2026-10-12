@@ -11,7 +11,7 @@ import com.example.tripchecker.ui.importflow.ImportViewModel
 fun createViewModelFactory(container: AppContainer): ViewModelProvider.Factory =
     viewModelFactory {
         initializer {
-            HomeViewModel(container.observeJourneysUseCase, container.ticketRepository, container.clock)
+            HomeViewModel(container.ticketRepository, container.clock)
         }
         initializer {
             ImportViewModel(container.importManager)

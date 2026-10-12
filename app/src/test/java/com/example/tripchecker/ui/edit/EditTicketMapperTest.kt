@@ -1,6 +1,7 @@
 package com.example.tripchecker.ui.edit
 
 import com.example.tripchecker.extraction.parser.TicketField
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -29,5 +30,12 @@ class EditTicketMapperTest {
             )
         val ticket = EditTicketMapper.toTicket(form, existing = null, now = Instant.EPOCH)
         assertFalse(ticket.needsReview)
+    }
+
+    @Test
+    fun `fare round trip preserves paise`() {
+        assertEquals(12814L, EditTicketMapper.parseFarePaise("128.14"))
+        assertEquals("128.14", EditTicketMapper.formatFareRupees(12814L))
+        assertEquals(147000L, EditTicketMapper.parseFarePaise("1,470.00"))
     }
 }

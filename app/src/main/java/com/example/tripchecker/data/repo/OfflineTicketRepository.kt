@@ -4,9 +4,9 @@ import com.example.tripchecker.data.db.dao.TicketDao
 import com.example.tripchecker.data.db.toDomain
 import com.example.tripchecker.data.db.toEntity
 import com.example.tripchecker.data.file.TicketFileStore
+import com.example.tripchecker.domain.DuplicatePnrException
 import com.example.tripchecker.domain.model.Ticket
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.time.Clock
 
@@ -22,29 +22,39 @@ class OfflineTicketRepository(
     override fun observeTicket(id: String): Flow<Ticket?> =
         dao.observeById(id).map { it?.toDomain() }
 
-    override suspend fun findByPnr(pnr: String): Ticket? {
-        val entity = dao.getByPnr(pnr) ?: return null
-        return dao.observeById(entity.id).map { it?.toDomain() }.first()
-    }
+    override suspend fun findByPnr(pnr: String): Ticket? =
+        dao.getByPnr(pnr)?.let { dao.getWithPassengersById(it.id)?.toDomain() }
 
-    override suspend fun findBySha(sha: String): Ticket? {
-        val entity = dao.getBySha(sha) ?: return null
-        return dao.observeById(entity.id).map { it?.toDomain() }.first()
-    }
+    override suspend fun findBySha(sha: String): Ticket? =
+        dao.getBySha(sha)?.let { dao.getWithPassengersById(it.id)?.toDomain() }
 
     override suspend fun getRawText(ticketId: String): String? = dao.getRawText(ticketId)
 
     override suspend fun upsert(ticket: Ticket, rawText: String?) {
+        ticket.pnr?.let { pnr ->
+            dao.getByPnr(pnr)?.takeIf { it.id != ticket.id }?.let {
+                throw DuplicatePnrException(it.id)
+            }
+        }
         val passengers = ticket.passengers.map { it.toEntity(ticket.id) }
-        val rawToStore =
-            rawText ?: dao.getRawText(ticket.id)
+        val rawToStore = rawText ?: dao.getRawText(ticket.id)
         dao.upsertWithPassengers(ticket.toEntity(rawToStore), passengers)
     }
 
     override suspend fun delete(id: String) {
-        val existing = dao.observeById(id).map { it?.ticket }.first()
+        val existing = dao.getWithPassengersById(id)
+        val linkGroup = existing?.ticket?.linkGroupId
+        val siblings =
+            if (linkGroup != null) {
+                dao.getIdsInLinkGroup(linkGroup).filter { it != id }
+            } else {
+                emptyList()
+            }
         dao.deleteById(id)
-        fileStore.delete(existing?.pdfFileName)
+        fileStore.delete(existing?.ticket?.pdfFileName)
+        if (siblings.size == 1) {
+            dao.clearLinkGroup(siblings, clock.instant())
+        }
     }
 
     override suspend fun setCancelled(id: String, value: Boolean) {

@@ -13,10 +13,10 @@ Reviewed: commits `1633a09` … `bd19c0f` (all code on `main`) on 2026-10-12.
 
 | Gate | Result | Evidence |
 |---|---|---|
-| `assembleDebug` | ✅ passes | APK built locally with JBR 21 |
-| `testDebugUnitTest` | ❌ **2 of 62 tests fail** | `ImportManagerTest`: `Method parse in android.net.Uri not mocked` ([ImportManagerTest.kt:37](../app/src/test/java/com/example/tripchecker/importer/ImportManagerTest.kt:37), [:67](../app/src/test/java/com/example/tripchecker/importer/ImportManagerTest.kt:67)) |
-| `lintDebug` | ❌ **7 errors, 34 warnings** | 2 × `NewApi` (real crashes on API 28–33), 5 × `LocalContextGetResourceValueCall` |
-| `app/build` before this review | no test results, no APK | the suite was never run green |
+| `assembleDebug` | ✅ passes | 2026-10-12 local with `JAVA_HOME` = Android Studio JBR |
+| `testDebugUnitTest` | ✅ passes | 65 tests (incl. `ImportManagerTest`, `TicketImporterTest`, TripGrouper 14-day boundary) |
+| `lintDebug` | ✅ passes | 0 errors (`TripDetailScreen` uses `stringResource` for snackbars) |
+| `app/build` before this review | no test results, no APK | superseded by green gate above |
 
 ### What went wrong in the process
 
@@ -37,7 +37,7 @@ Reviewed: commits `1633a09` … `bd19c0f` (all code on `main`) on 2026-10-12.
 
 ## P0: crashes and data loss (fix first, test-first)
 
-### - [ ] P0-1 · Every import crashes the app on Android 9–12 (`readNBytes` is API 33)
+### - [x] P0-1 · Every import crashes the app on Android 9–12 (`readNBytes` is API 33)
 - **Where:** [TicketFileStore.kt:46](../app/src/main/java/com/example/tripchecker/data/file/TicketFileStore.kt:46). `temp.inputStream().use { it.readNBytes(5) }`.
 - **Why:** `InputStream.readNBytes(int)` only exists from API 33. minSdk is 28. On API 28–32 it throws `NoSuchMethodError`. That is an `Error`, so `catch (e: Exception)` in [ImportManager.kt:45](../app/src/main/java/com/example/tripchecker/importer/ImportManager.kt:45) misses it. It escapes `appScope`, which has no `CoroutineExceptionHandler`, and the process dies.
 - **Fix:**
@@ -47,7 +47,7 @@ Reviewed: commits `1633a09` … `bd19c0f` (all code on `main`) on 2026-10-12.
 - **Also:** [HomeUiMapper.kt:50](../app/src/main/java/com/example/tripchecker/ui/home/HomeUiMapper.kt:50) uses `LocalDate.EPOCH`, which is API 34 (the second `NewApi` error). Replace it with `LocalDate.of(1970, 1, 1)`, or better, drop groups without a departure.
 - **Guard:** keep `NewApi` as a lint error. Never use Java 9+ APIs (`readNBytes`, `readAllBytes`, `transferTo`, `Duration.toHoursPart`, `LocalDate.EPOCH`, `List.of`, …) without checking lint.
 
-### - [ ] P0-2 · Re-importing the same PNR deletes the new PDF ("Go to ticket" breaks)
+### - [x] P0-2 · Re-importing the same PNR deletes the new PDF ("Go to ticket" breaks)
 - **Where:** [TicketImporter.kt:57-58](../app/src/main/java/com/example/tripchecker/importer/TicketImporter.kt:57).
 - **Why:** `moveToTicketId(staged, existing.id)` renames the new file to `<existingId>.pdf`. On Android, `rename(2)` overwrites the old file. Then `fileStore.delete(existingByPnr.pdfFileName)` deletes `<existingId>.pdf`, which is the **new** file. Every "Updated" ticket ends up pointing at a missing PDF. This is exactly the re-download-after-chart-preparation flow from §3.5 step 4.
 - **Fix:**
@@ -56,7 +56,7 @@ Reviewed: commits `1633a09` … `bd19c0f` (all code on `main`) on 2026-10-12.
   - On any failure after the move, delete the moved file (see P1-10).
 - **Test:** make the fake file store use a real temp dir and the **real** naming (`<id>.pdf` for the existing ticket). Assert that after `Updated` the new PDF exists, `pdfFileName` resolves to it, and the old file is gone.
 
-### - [ ] P0-3 · `@Upsert` + UNIQUE(`pnr`/`pdfSha256`) silently drops writes or crashes with a FOREIGN KEY error
+### - [x] P0-3 · `@Upsert` + UNIQUE(`pnr`/`pdfSha256`) silently drops writes or crashes with a FOREIGN KEY error
 - **Where:** [TicketDao.kt:32-46](../app/src/main/java/com/example/tripchecker/data/db/dao/TicketDao.kt:32), [OfflineTicketRepository.kt:37-42](../app/src/main/java/com/example/tripchecker/data/repo/OfflineTicketRepository.kt:37).
 - **Why (checked in the Room 2.8.0 sources, `EntityUpsertAdapter.checkUniquenessException`):** when the INSERT fails with *any* UNIQUE violation (code 2067, not just the primary key), Room falls back to `UPDATE … WHERE id = <new id>`. That updates **0 rows**. Then `insertPassengers` fails with `FOREIGN KEY constraint failed`.
   - **Add manually** with a PNR that already exists and **no passengers** → nothing is saved, but `onSaved()` pops back as if it succeeded.
@@ -74,7 +74,7 @@ Reviewed: commits `1633a09` … `bd19c0f` (all code on `main`) on 2026-10-12.
 
 ## P1: wrong behaviour users will hit
 
-### - [ ] P1-1 · Import batches are not sequential across `enqueue()` calls
+### - [x] P1-1 · Import batches are not sequential across `enqueue()` calls
 - **Where:** [ImportManager.kt:35](../app/src/main/java/com/example/tripchecker/importer/ImportManager.kt:35). Every `enqueue` starts its own `scope.launch` on the multi-threaded `Dispatchers.Default`.
 - **Failure:** the user shares a PDF while a picker batch is running, or shares twice. Two `TicketImporter.process` calls then run in parallel:
   - SHA/PNR dedupe races (TOCTOU) → P0-3 data loss.
@@ -83,7 +83,7 @@ Reviewed: commits `1633a09` … `bd19c0f` (all code on `main`) on 2026-10-12.
 - **Fix:** one worker. Use `Channel<StagedItem>(UNLIMITED)` consumed by a single `scope.launch { for (x in ch) … }` (or a `Mutex` around phase B). Phase A (staging) can stay immediate.
 - **Test:** a fake importer that records max concurrency. Two `enqueue` calls → assert `maxConcurrent == 1`.
 
-### - [ ] P1-2 · OCR can allocate an unbounded bitmap; OOM crashes the app; the bitmap leaks on failure
+### - [x] P1-2 · OCR can allocate an unbounded bitmap; OOM crashes the app; the bitmap leaks on failure
 - **Where:** [OcrTextExtractor.kt:58-86](../app/src/main/java/com/example/tripchecker/extraction/OcrTextExtractor.kt:58), [:52](../app/src/main/java/com/example/tripchecker/extraction/OcrTextExtractor.kt:52).
 - **Why:**
   - `scale = 2000f / page.width` uses no height cap. A tall or narrow page (receipt-style PDF, a 1-pt-wide page) gives `2000 × 60 000 × 4 B` and an `OutOfMemoryError`. That is an `Error`, not caught → crash.
@@ -100,7 +100,7 @@ Reviewed: commits `1633a09` … `bd19c0f` (all code on `main`) on 2026-10-12.
   - Malformed PDFs can throw `StackOverflowError` or `OutOfMemoryError`. Catch those too and return `null`.
 - **ML Kit client:** it is created eagerly at app start ([AppContainer.kt:48-49](../app/src/main/java/com/example/tripchecker/di/AppContainer.kt:48)) and never closed. Make it `lazy`. Document that it is intentionally app-scoped.
 
-### - [ ] P1-3 · `ImportManagerTest` is red (the suite is not green)
+### - [x] P1-3 · `ImportManagerTest` is red (the suite is not green)
 - **Where:** [ImportManagerTest.kt:37](../app/src/test/java/com/example/tripchecker/importer/ImportManagerTest.kt:37), [:67](../app/src/test/java/com/example/tripchecker/importer/ImportManagerTest.kt:67). `Uri.parse` is a stub on the JVM.
 - **Fix (root cause):** decouple `ImportManager` from `android.net.Uri`. Options:
   - Make it generic over the source type (`ImportManager<S>(stager: Stager<S>, displayName: (S) -> String)`).
@@ -108,18 +108,18 @@ Reviewed: commits `1633a09` … `bd19c0f` (all code on `main`) on 2026-10-12.
 - Do **not** add Robolectric (it is not in the allowed library list). `unitTests.isReturnDefaultValues = true` only turns this into an NPE.
 - Move `StagedFile` out of the Android class `TicketFileStore` into its own pure file.
 
-### - [ ] P1-4 · The 14-day pairing window actually allows up to 14 d 23 h 59 m
+### - [x] P1-4 · The 14-day pairing window actually allows up to 14 d 23 h 59 m
 - **Where:** [TripGrouper.kt:43](../app/src/main/java/com/example/tripchecker/domain/grouping/TripGrouper.kt:43). `Duration.between(o, r).toDays() <= 14` truncates.
 - **Example:** out 1 Aug 10:00, return 15 Aug 20:00 = 14 d 10 h → paired. The spec says ≤ 14 days.
 - **Fix:** `Duration.between(o, r) <= Duration.ofDays(PAIRING_WINDOW_DAYS)`.
 - **Test:** exactly 14 d → paired; 14 d + 1 min → two ONE_WAY.
 
-### - [ ] P1-5 · Home "Past" is grouped by **day**, not month (duplicate "August 2026" headers)
+### - [x] P1-5 · Home "Past" is grouped by **day**, not month (duplicate "August 2026" headers)
 - **Where:** [HomeUiMapper.kt:48-51](../app/src/main/java/com/example/tripchecker/ui/home/HomeUiMapper.kt:48). `groupBy { …toLocalDate() }`.
 - **Fix:** `groupBy { YearMonth.from(it) }`. The header comes from the `YearMonth`.
 - **Test:** two past trips on 3 Aug and 10 Aug → exactly one "August 2026" section with 2 groups.
 
-### - [ ] P1-6 · Cancelled tickets appear as the "Next journey" hero
+### - [x] P1-6 · Cancelled tickets appear as the "Next journey" hero
 - **Where:** [HomeUiMapper.kt:25-29](../app/src/main/java/com/example/tripchecker/ui/home/HomeUiMapper.kt:25). There is no `isCancelled` filter.
 - **Fix:** `.filter { !it.isCancelled && … }`. Consider also skipping legs where every passenger's `current.code == "CAN"`.
 - **Test:** a cancelled leg departing before a non-cancelled leg → the hero is the non-cancelled one.
@@ -135,7 +135,7 @@ Reviewed: commits `1633a09` … `bd19c0f` (all code on `main`) on 2026-10-12.
   - Do the same in TripDetail.
 - **Test:** a VM with a fake repo and `StandardTestDispatcher`. Advance past departure → the group moves to IN_PROGRESS without any DB change.
 
-### - [ ] P1-8 · Fare loses 1 paisa via `Double` (17,774 of 290,000 values from ₹100 to ₹2,999.99)
+### - [x] P1-8 · Fare loses 1 paisa via `Double` (17,774 of 290,000 values from ₹100 to ₹2,999.99)
 - **Where:** [EditTicketForm.kt:129-130](../app/src/main/java/com/example/tripchecker/ui/edit/EditTicketForm.kt:129) (`(toDouble() * 100).toLong()`) and [:78](../app/src/main/java/com/example/tripchecker/ui/edit/EditTicketForm.kt:78) (`(it / 100.0).toString()`).
 - **Failure:** `"128.14"` → 12813 paise. Because the form re-encodes the fare on every save, **any** edit can silently change an imported fare. `"1,470.00"` (with a comma) → `null`, so the fare is dropped.
 - **Fix:**

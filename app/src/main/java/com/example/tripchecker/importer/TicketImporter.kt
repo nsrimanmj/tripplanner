@@ -1,7 +1,7 @@
 package com.example.tripchecker.importer
 
+import com.example.tripchecker.data.file.StagedFile
 import com.example.tripchecker.data.file.TicketFileOperations
-import com.example.tripchecker.data.file.TicketFileStore
 import com.example.tripchecker.data.repo.TicketRepository
 import com.example.tripchecker.domain.model.ExtractionMethod
 import com.example.tripchecker.domain.model.Ticket
@@ -27,7 +27,7 @@ class TicketImporter(
     private val parsers: List<TicketParser>,
     private val clock: Clock,
 ) {
-    suspend fun process(staged: TicketFileStore.StagedFile): TicketImportResult {
+    suspend fun process(staged: StagedFile): TicketImportResult {
         val existingBySha = repository.findBySha(staged.sha256)
         if (existingBySha != null) {
             staged.file.delete()
@@ -37,78 +37,102 @@ class TicketImporter(
         val rawText = extracted?.text
         val method = extracted?.method ?: ExtractionMethod.OCR
         if (rawText.isNullOrBlank()) {
-            val id = UUID.randomUUID().toString()
-            val fileName = fileStore.moveToTicketId(staged.file, id)
-            val ticket = emptyTicket(id, fileName, staged, method, needsReview = true)
-            repository.upsert(ticket, rawText = "")
-            return TicketImportResult.NeedsReview(id)
+            return persistNew(staged, ParsedTicket(), method, rawText ?: "", needsReview = true)
         }
         val parser = parsers.firstOrNull { it.canParse(rawText) }
         if (parser == null) {
-            val id = UUID.randomUUID().toString()
-            val fileName = fileStore.moveToTicketId(staged.file, id)
-            val ticket = emptyTicket(id, fileName, staged, method, needsReview = true)
-            repository.upsert(ticket, rawText = rawText)
-            return TicketImportResult.NeedsReview(id)
+            return persistNew(staged, ParsedTicket(), method, rawText, needsReview = true)
         }
         val parsed = parser.parse(rawText)
         val existingByPnr = parsed.pnr?.let { repository.findByPnr(it) }
-        if (existingByPnr != null) {
-            val fileName = fileStore.moveToTicketId(staged.file, existingByPnr.id)
-            fileStore.delete(existingByPnr.pdfFileName)
+        if (existingByPnr != null && isSameBooking(existingByPnr, parsed)) {
+            return persistUpdate(existingByPnr, staged, parsed, method, rawText)
+        }
+        return persistNew(
+            staged,
+            parsed,
+            method,
+            rawText,
+            needsReview = parsed.missingFields.intersect(com.example.tripchecker.extraction.parser.REQUIRED_TICKET_FIELDS).isNotEmpty(),
+        )
+    }
+
+    private suspend fun persistNew(
+        staged: StagedFile,
+        parsed: ParsedTicket,
+        method: ExtractionMethod,
+        rawText: String,
+        needsReview: Boolean,
+    ): TicketImportResult {
+        val id = UUID.randomUUID().toString()
+        var movedName: String? = null
+        try {
+            movedName = fileStore.moveStagedToTicket(staged.file, id, staged.sha256)
+            val ticket =
+                ParsedTicketMapper.toNewTicket(
+                    parsed = parsed,
+                    ticketId = id,
+                    pdfFileName = movedName,
+                    pdfSha256 = staged.sha256,
+                    originalFileName = staged.originalName,
+                    extractionMethod = method,
+                    now = clock.instant(),
+                ).copy(needsReview = needsReview)
+            repository.upsert(ticket, rawText = rawText)
+            return if (ticket.needsReview) TicketImportResult.NeedsReview(id) else TicketImportResult.Saved(id)
+        } catch (e: Exception) {
+            movedName?.let { fileStore.delete(it) }
+            throw e
+        }
+    }
+
+    private suspend fun persistUpdate(
+        existing: Ticket,
+        staged: StagedFile,
+        parsed: ParsedTicket,
+        method: ExtractionMethod,
+        rawText: String,
+    ): TicketImportResult {
+        val oldPdf = existing.pdfFileName
+        var movedName: String? = null
+        try {
+            movedName = fileStore.moveStagedToTicket(staged.file, existing.id, staged.sha256)
             val updated =
                 ParsedTicketMapper.mergeParsedIntoExisting(
-                    existing = existingByPnr,
+                    existing = existing,
                     parsed = parsed,
-                    pdfFileName = fileName,
+                    pdfFileName = movedName,
                     pdfSha256 = staged.sha256,
                     originalFileName = staged.originalName,
                     extractionMethod = method,
                     now = clock.instant(),
                 )
             repository.upsert(updated, rawText = rawText)
-            return if (updated.needsReview) {
-                TicketImportResult.NeedsReview(existingByPnr.id)
-            } else {
-                TicketImportResult.Updated(existingByPnr.id)
+            if (oldPdf != null && oldPdf != movedName) {
+                fileStore.delete(oldPdf)
             }
-        }
-        val id = UUID.randomUUID().toString()
-        val fileName = fileStore.moveToTicketId(staged.file, id)
-        val ticket =
-            ParsedTicketMapper.toNewTicket(
-                parsed = parsed,
-                ticketId = id,
-                pdfFileName = fileName,
-                pdfSha256 = staged.sha256,
-                originalFileName = staged.originalName,
-                extractionMethod = method,
-                now = clock.instant(),
-            )
-        repository.upsert(ticket, rawText = rawText)
-        return if (ticket.needsReview) {
-            TicketImportResult.NeedsReview(id)
-        } else {
-            TicketImportResult.Saved(id)
+            return if (updated.needsReview) {
+                TicketImportResult.NeedsReview(existing.id)
+            } else {
+                TicketImportResult.Updated(existing.id)
+            }
+        } catch (e: Exception) {
+            movedName?.let { fileStore.delete(it) }
+            throw e
         }
     }
 
-    private fun emptyTicket(
-        id: String,
-        fileName: String,
-        staged: TicketFileStore.StagedFile,
-        method: ExtractionMethod,
-        needsReview: Boolean,
-    ): Ticket {
-        val now = clock.instant()
-        return ParsedTicketMapper.toNewTicket(
-            parsed = ParsedTicket(),
-            ticketId = id,
-            pdfFileName = fileName,
-            pdfSha256 = staged.sha256,
-            originalFileName = staged.originalName,
-            extractionMethod = method,
-            now = now,
-        ).copy(needsReview = needsReview)
+    private fun isSameBooking(existing: Ticket, parsed: ParsedTicket): Boolean {
+        if (parsed.trainNumber != null && existing.trainNumber != null &&
+            parsed.trainNumber != existing.trainNumber
+        ) {
+            return false
+        }
+        if (parsed.startDate != null && existing.startDate != null &&
+            parsed.startDate != existing.startDate
+        ) {
+            return false
+        }
+        return true
     }
 }

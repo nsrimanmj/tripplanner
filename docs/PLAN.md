@@ -724,6 +724,8 @@ Put real PDFs in `samples/` (gitignored) and push them with `adb push samples/ /
 - 2026-10-12 · M6.1 · Import staging in `cacheDir/staging` with legacy `staging-*` cleanup in `filesDir/tickets` · matches PLAN process-death requirement while keeping final PDFs in tickets dir.
 - 2026-10-12 · M6 prep · lint.xml + lint block; PdfBox keep rules already in rules.keep; release optimization stays `false` until owner `assembleRelease` green · —
 - 2026-10-12 · daemon JVM · `gradle-daemon-jvm.properties` toolchain 21 · foojay JDK 25 provision fails offline; Studio JBR 21 works.
+- 2026-10-12 · code review · `gradle-daemon-jvm.properties` toolchain 25 · JDK 21 auto-download URL missing on Windows; Studio JBR is 25.
+- 2026-10-12 · code review P0/P1 · Unique PDF names, explicit Room upsert, ImportManager without Uri, OCR/PdfBox hardening, fare BigDecimal · ImportManagerTest, TicketImporterTest, TripGrouper boundary, EditTicketMapperTest.
 
 ## 8. Blockers
 <!-- Append: YYYY-MM-DD · task · what is blocked · what you tried · what's needed -->
@@ -738,3 +740,4 @@ Put real PDFs in `samples/` (gitignored) and push them with `adb push samples/ /
 - 2026-10-12 09:45 · M6.3 partial · PdfBox R8 keep/dontwarn rules in rules.keep · assembleRelease not run (Gradle download blocked)
 - 2026-10-12 12:00 · M5.5–M5.8 · Trip detail, edit ticket, TicketActions, HomeUiMapper/LinkReturnCandidates tests · HomeUiMapperTest, LinkReturnCandidatesTest, EditTicketMapperTest, ImportManagerTest
 - 2026-10-12 12:15 · M6.5 · Compose previews, KDoc pass, verify.ps1, lint.xml, TripDetail snackbar fix · —
+- 2026-10-12 18:50 · code review · P0 import/lint fixes; gate green (`assembleDebug testDebugUnitTest lintDebug`) · ImportManagerTest, TicketImporterTest, TripGrouperTest, EditTicketMapperTest

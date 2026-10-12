@@ -15,9 +15,15 @@ import com.example.tripchecker.importer.ImportManager
 import com.example.tripchecker.importer.TicketImporter
 import android.net.Uri
 import androidx.lifecycle.ViewModelProvider
+import com.example.tripchecker.importer.ImportEnqueueRequest
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import android.util.Log
 import java.time.Clock
 
 /** Manual dependency container for the app. */
@@ -57,7 +63,17 @@ class AppContainer(
             clock = clock,
         )
 
-    val appScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val _openImportEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val openImportEvents: SharedFlow<Unit> = _openImportEvents.asSharedFlow()
+
+    val appScope: CoroutineScope =
+        CoroutineScope(
+            SupervisorJob() +
+                Dispatchers.Default +
+                CoroutineExceptionHandler { _, throwable ->
+                    Log.e("TripChecker", "Unhandled coroutine error", throwable)
+                },
+        )
 
     val importManager: ImportManager =
         ImportManager(
@@ -69,6 +85,16 @@ class AppContainer(
     val viewModelFactory: ViewModelProvider.Factory = createViewModelFactory(this)
 
     fun enqueueImports(uris: List<Uri>) {
-        importManager.enqueue(uris)
+        if (uris.isEmpty()) return
+        val capped = uris.take(50)
+        importManager.enqueue(
+            capped.map { uri ->
+                ImportEnqueueRequest(
+                    uriString = uri.toString(),
+                    displayName = uri.lastPathSegment ?: "ticket.pdf",
+                )
+            },
+        )
+        _openImportEvents.tryEmit(Unit)
     }
 }

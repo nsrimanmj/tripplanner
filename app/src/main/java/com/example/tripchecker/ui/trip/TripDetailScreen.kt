@@ -54,6 +54,10 @@ fun TripDetailScreen(
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val pnrCopiedMessage = stringResource(R.string.pnr_copied)
+    val noPdfAppMessage = stringResource(R.string.no_pdf_app)
+    val sharePdfLabel = stringResource(R.string.share_pdf)
+    val pdfMissingMessage = stringResource(R.string.pdf_missing)
     var deleteLegId by remember { mutableStateOf<String?>(null) }
     var linkSheet by remember { mutableStateOf(false) }
 
@@ -74,7 +78,7 @@ fun TripDetailScreen(
         onCopyPnr = { pnr ->
             val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             cm.setPrimaryClip(ClipData.newPlainText("pnr", pnr))
-            scope.launch { snackbar.showSnackbar(context.getString(R.string.pnr_copied)) }
+            scope.launch { snackbar.showSnackbar(pnrCopiedMessage) }
         },
         onGoToTicket = { leg ->
             when (TicketActions.openPdf(context, fileStore, leg)) {
@@ -82,8 +86,8 @@ fun TripDetailScreen(
                     scope.launch {
                         val result =
                             snackbar.showSnackbar(
-                                message = context.getString(R.string.no_pdf_app),
-                                actionLabel = context.getString(R.string.share_pdf),
+                                message = noPdfAppMessage,
+                                actionLabel = sharePdfLabel,
                             )
                         if (result == SnackbarResult.ActionPerformed) {
                             TicketActions.sharePdf(context, fileStore, leg)
@@ -91,13 +95,13 @@ fun TripDetailScreen(
                     }
                 }
                 OpenPdfResult.MissingFile ->
-                    scope.launch { snackbar.showSnackbar(context.getString(R.string.pdf_missing)) }
+                    scope.launch { snackbar.showSnackbar(pdfMissingMessage) }
                 OpenPdfResult.Opened -> Unit
             }
         },
         onShare = { leg ->
             if (!TicketActions.sharePdf(context, fileStore, leg)) {
-                scope.launch { snackbar.showSnackbar(context.getString(R.string.pdf_missing)) }
+                scope.launch { snackbar.showSnackbar(pdfMissingMessage) }
             }
         },
         onToggleCancelled = { leg -> viewModel.toggleCancelled(leg.id, !leg.isCancelled) },
@@ -183,7 +187,7 @@ fun TripDetailContent(
                 }
             AssistChip(onClick = {}, label = { Text(kindLabel) })
             if (group.status == JourneyStatus.IN_PROGRESS) {
-                AssistChip(onClick = {}, label = { Text(stringResource(R.string.in_progress)) })
+                AssistChip(onClick = {}, label = { Text(stringResource(R.string.journey_in_progress)) })
             }
             group.legs.firstOrNull()?.extractionMethod?.let { method ->
                 if (method == ExtractionMethod.OCR) {

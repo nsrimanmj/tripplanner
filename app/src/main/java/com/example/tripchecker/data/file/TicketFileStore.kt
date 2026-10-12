@@ -6,9 +6,7 @@ import android.provider.OpenableColumns
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.InputStream
-import java.security.DigestInputStream
-import java.security.MessageDigest
+import java.io.IOException
 
 /** Copies ticket PDFs into app-private storage and tracks SHA-256. */
 class TicketFileStore(
@@ -25,35 +23,30 @@ class TicketFileStore(
         StagingCleanup.clean(stagingDir, ticketsDir)
     }
 
-    data class StagedFile(
-        val file: File,
-        val sha256: String,
-        val originalName: String,
-        val sizeBytes: Long,
-    )
-
-    override suspend fun importFromUri(uri: Uri): StagedFile =
+    override suspend fun importFromUri(uriString: String): StagedFile =
         withContext(Dispatchers.IO) {
+            val uri = Uri.parse(uriString)
             val originalName = queryDisplayName(uri) ?: "ticket.pdf"
             val temp = File(stagingDir, "${System.nanoTime()}.pdf")
-            context.contentResolver.openInputStream(uri)?.use { input ->
-                copyWithDigest(input, temp)
-            } ?: error("Cannot open URI")
-            if (temp.length() == 0L) {
+            try {
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    val header = PdfValidation.readExactly(input, 5)
+                    if (!PdfValidation.isPdfHeader(header)) {
+                        throw IOException("Not a PDF")
+                    }
+                    val result =
+                        temp.outputStream().use { out ->
+                            PdfValidation.copyPrefixAndStream(header, input, out)
+                        }
+                    if (!PdfValidation.isWithinSizeLimit(result.bytesWritten)) {
+                        throw IOException("File too large")
+                    }
+                    StagedFile(temp, result.sha256Hex, originalName, result.bytesWritten)
+                } ?: throw IOException("Cannot open URI")
+            } catch (e: Exception) {
                 temp.delete()
-                error("Empty file")
+                throw e
             }
-            val header = temp.inputStream().use { it.readNBytes(5) }
-            if (!PdfValidation.isPdfHeader(header)) {
-                temp.delete()
-                error("Not a PDF")
-            }
-            if (!PdfValidation.isWithinSizeLimit(temp.length())) {
-                temp.delete()
-                error("File too large")
-            }
-            val sha = sha256File(temp)
-            StagedFile(temp, sha, originalName, temp.length())
         }
 
     fun fileFor(fileName: String): File = File(ticketsDir, fileName)
@@ -64,11 +57,22 @@ class TicketFileStore(
             fileFor(fileName).delete()
         }
 
-    override suspend fun moveToTicketId(staged: File, ticketId: String): String =
+    override suspend fun moveStagedToTicket(staged: File, ticketId: String, sha256: String): String =
         withContext(Dispatchers.IO) {
-            val dest = fileFor("$ticketId.pdf")
-            if (staged.absolutePath != dest.absolutePath) {
-                staged.renameTo(dest)
+            val dest = fileFor(ticketPdfFileName(ticketId, sha256))
+            if (staged.absolutePath == dest.absolutePath) {
+                return@withContext dest.name
+            }
+            val renamed = staged.renameTo(dest)
+            if (renamed) {
+                return@withContext dest.name
+            }
+            staged.inputStream().use { input ->
+                dest.outputStream().use { output -> input.copyTo(output) }
+            }
+            staged.delete()
+            if (!dest.exists()) {
+                throw IOException("Failed to store PDF")
             }
             dest.name
         }
@@ -82,25 +86,5 @@ class TicketFileStore(
                 }
             }
         return null
-    }
-
-    private fun copyWithDigest(input: InputStream, dest: File) {
-        val digest = MessageDigest.getInstance("SHA-256")
-        DigestInputStream(input, digest).use { din ->
-            dest.outputStream().use { out -> din.copyTo(out) }
-        }
-    }
-
-    private fun sha256File(file: File): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        file.inputStream().use { input ->
-            val buffer = ByteArray(8 * 1024)
-            while (true) {
-                val read = input.read(buffer)
-                if (read <= 0) break
-                digest.update(buffer, 0, read)
-            }
-        }
-        return digest.digest().joinToString("") { "%02x".format(it) }
     }
 }

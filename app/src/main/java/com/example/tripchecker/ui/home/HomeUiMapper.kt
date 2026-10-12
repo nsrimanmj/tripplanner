@@ -6,7 +6,7 @@ import com.example.tripchecker.domain.model.Ticket
 import com.example.tripchecker.extraction.parser.IrctcDates
 import com.example.tripchecker.ui.common.Formatters
 import java.time.Instant
-import java.time.LocalDate
+import java.time.YearMonth
 
 /** Pure mapping from domain journeys to [HomeUiState]. */
 object HomeUiMapper {
@@ -25,7 +25,11 @@ object HomeUiMapper {
         val next =
             visibleGroups
                 .flatMap { it.legs }
-                .filter { it.departureAt != null && it.departureAt!! > now }
+                .filter { leg ->
+                    !leg.isCancelled &&
+                        leg.departureAt != null &&
+                        leg.departureAt!! > now
+                }
                 .minByOrNull { it.departureAt!! }
                 ?.let { leg ->
                     NextJourneyUi(
@@ -46,13 +50,14 @@ object HomeUiMapper {
             visibleGroups
                 .filter { it.status == JourneyStatus.PAST }
                 .groupBy { group ->
-                    group.legs.first().departureAt?.atZone(IrctcDates.IST)?.toLocalDate()
-                        ?: LocalDate.EPOCH
+                    group.legs.first().departureAt?.atZone(IrctcDates.IST)?.let { YearMonth.from(it) }
                 }
+                .filterKeys { it != null }
                 .toList()
                 .sortedByDescending { it.first }
-                .map { (date, monthGroups) ->
-                    PastMonthGroup(Formatters.formatMonthHeader(date), monthGroups)
+                .map { (month, monthGroups) ->
+                    val sampleDate = month!!.atDay(1)
+                    PastMonthGroup(Formatters.formatMonthHeader(sampleDate), monthGroups)
                 }
         return HomeUiState(
             isLoading = false,

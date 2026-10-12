@@ -10,7 +10,7 @@
     <string name="round_trip">Round trip</string>
     <string name="one_way">One way</string>
     <string name="custom_trip">Custom</string>
-    <string name="in_progress">In progress</string>
+    <string name="journey_in_progress">In progress</string>
     <string name="import_screen_title">Import</string>
     <string name="done">Done</string>
     <string name="import_queued">Queued</string>

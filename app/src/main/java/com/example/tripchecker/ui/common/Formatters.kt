@@ -36,21 +36,25 @@ object Formatters {
         val depDate = departure.atZone(zone).toLocalDate()
         val nowDate = now.atZone(zone).toLocalDate()
         val depTime = formatTime(departure)
+        val until = Duration.between(now, departure)
         return when {
-            depDate.isAfter(nowDate.plusDays(1)) -> {
-                val days = ChronoUnit.DAYS.between(nowDate, depDate)
-                val hours = ChronoUnit.HOURS.between(now, departure) % 24
-                "in ${days}d ${hours}h"
-            }
             depDate.isEqual(nowDate.plusDays(1)) -> "Tomorrow · $depTime"
             depDate.isEqual(nowDate) -> "Today · $depTime"
-            else -> formatDate(depDate) + " · $depTime"
+            until.isNegative -> formatDate(depDate) + " · $depTime"
+            else -> {
+                val days = until.toDays()
+                val hours = until.toHours() % 24
+                "in ${days}d ${hours}h"
+            }
         }
     }
 
     fun formatMoneyPaise(paise: Long): String {
+        val fmt = NumberFormat.getNumberInstance(Locale.forLanguageTag("en-IN"))
+        fmt.minimumFractionDigits = 2
+        fmt.maximumFractionDigits = 2
         val rupees = paise / 100.0
-        return "₹" + moneyFmt.format(rupees)
+        return "₹" + fmt.format(rupees)
     }
 
     fun formatBerthSummary(ticket: com.example.tripchecker.domain.model.Ticket): String {

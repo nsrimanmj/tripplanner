@@ -25,7 +25,12 @@ fun AppNavHost(
 ) {
     if (startOnImport) {
         androidx.compose.runtime.LaunchedEffect(Unit) {
-            navController.navigate(Import)
+            navController.navigate(Import) { launchSingleTop = true }
+        }
+    }
+    androidx.compose.runtime.LaunchedEffect(container) {
+        container.openImportEvents.collect {
+            navController.navigate(Import) { launchSingleTop = true }
         }
     }
     NavHost(navController = navController, startDestination = Home) {
@@ -38,7 +43,7 @@ fun AppNavHost(
                 onEditTicket = { navController.navigate(EditTicket(it)) },
                 onPdfsSelected = { uris ->
                     onPdfsSelected(uris)
-                    navController.navigate(Import)
+                    navController.navigate(Import) { launchSingleTop = true }
                 },
                 onAddManual = { navController.navigate(EditTicket(null)) },
             )

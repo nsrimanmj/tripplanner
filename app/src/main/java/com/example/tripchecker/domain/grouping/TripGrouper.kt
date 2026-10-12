@@ -40,7 +40,8 @@ object TripGrouper {
                         StationClusters.cityOf(candidate.origin?.code) == destCity &&
                         StationClusters.cityOf(candidate.to?.code) == originCity &&
                         !candidate.departureAt!!.isBefore(outboundEnd) &&
-                        Duration.between(outbound.departureAt, candidate.departureAt).toDays() <= PAIRING_WINDOW_DAYS
+                        Duration.between(outbound.departureAt, candidate.departureAt) <=
+                            Duration.ofDays(PAIRING_WINDOW_DAYS)
                 }
             val chosen = candidates.minWithOrNull(compareBy({ it.departureAt }, { it.id }))
             if (chosen != null) {

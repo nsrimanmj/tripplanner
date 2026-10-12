@@ -8,6 +8,8 @@ import com.example.tripchecker.extraction.parser.PassengerStatusParser
 import com.example.tripchecker.extraction.parser.IrctcDates
 import com.example.tripchecker.extraction.parser.REQUIRED_TICKET_FIELDS
 import com.example.tripchecker.extraction.parser.TicketField
+import java.math.BigDecimal
+import java.math.RoundingMode
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -75,7 +77,7 @@ object EditTicketMapper {
             quota = ticket.quota ?: "",
             quotaLabel = ticket.quotaLabel ?: "",
             distanceKm = ticket.distanceKm?.toString() ?: "",
-            totalFareRupees = ticket.totalFarePaise?.let { (it / 100.0).toString() } ?: "",
+            totalFareRupees = ticket.totalFarePaise?.let { formatFareRupees(it) } ?: "",
             passengers =
                 ticket.passengers.map {
                     PassengerFormRow(
@@ -126,8 +128,7 @@ object EditTicketMapper {
                                 ?: PassengerStatusParser.parse(row.bookingStatus),
                     )
                 }
-        val farePaise =
-            form.totalFareRupees.toDoubleOrNull()?.let { (it * 100).toLong() }
+        val farePaise = parseFarePaise(form.totalFareRupees)
         val needsReview = missingFields(form).intersect(REQUIRED_TICKET_FIELDS).isNotEmpty()
         return Ticket(
             id = id,
@@ -175,5 +176,17 @@ object EditTicketMapper {
     private fun combineInstant(date: LocalDate?, time: LocalTime?): Instant? {
         if (date == null || time == null) return null
         return ZonedDateTime.of(date, time, IrctcDates.IST).toInstant()
+    }
+
+    fun formatFareRupees(paise: Long): String = BigDecimal.valueOf(paise, 2).toPlainString()
+
+    fun parseFarePaise(rupees: String): Long? {
+        val normalized = rupees.trim().replace(",", "")
+        if (normalized.isBlank()) return null
+        return normalized
+            .toBigDecimalOrNull()
+            ?.movePointRight(2)
+            ?.setScale(0, RoundingMode.HALF_UP)
+            ?.longValueExact()
     }
 }

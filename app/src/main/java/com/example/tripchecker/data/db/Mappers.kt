@@ -35,7 +35,9 @@ fun TicketEntity.toDomain(passengerEntities: List<PassengerEntity>): Ticket =
         pdfFileName = pdfFileName,
         pdfSha256 = pdfSha256,
         originalFileName = originalFileName,
-        extractionMethod = ExtractionMethod.valueOf(extractionMethod),
+        extractionMethod =
+            runCatching { ExtractionMethod.valueOf(extractionMethod) }
+                .getOrDefault(ExtractionMethod.OCR),
         needsReview = needsReview,
         linkGroupId = linkGroupId,
         autoPairDisabled = autoPairDisabled,

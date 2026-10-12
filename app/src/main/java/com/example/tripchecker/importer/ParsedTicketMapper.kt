@@ -40,20 +40,7 @@ object ParsedTicketMapper {
             bookedAt = parsed.bookedAt,
             transactionId = parsed.transactionId,
             totalFarePaise = parsed.totalFarePaise,
-            passengers = parsed.passengers.map { row ->
-                Passenger(
-                    id = UUID.randomUUID().toString(),
-                    serial = row.serial,
-                    name = row.name,
-                    age = row.age,
-                    gender = row.gender,
-                    bookingStatusRaw = row.bookingStatusRaw,
-                    currentStatusRaw = row.currentStatusRaw,
-                    current =
-                        PassengerStatusParser.parse(row.currentStatusRaw)
-                            ?: PassengerStatusParser.parse(row.bookingStatusRaw),
-                )
-            },
+            passengers = mapPassengers(parsed),
             pdfFileName = pdfFileName,
             pdfSha256 = pdfSha256,
             originalFileName = originalFileName,
@@ -77,16 +64,62 @@ object ParsedTicketMapper {
         extractionMethod: ExtractionMethod,
         now: Instant,
     ): Ticket {
-        val base = toNewTicket(parsed, existing.id, pdfFileName, pdfSha256, originalFileName, extractionMethod, now)
-        val needsReview = parsed.missingFields.intersect(REQUIRED_TICKET_FIELDS).isNotEmpty()
-        return base.copy(
-            linkGroupId = existing.linkGroupId,
-            autoPairDisabled = existing.autoPairDisabled,
-            isCancelled = existing.isCancelled,
-            notes = existing.notes,
-            createdAt = existing.createdAt,
-            needsReview = needsReview,
-            updatedAt = now,
-        )
+        val mergedPassengers =
+            if (parsed.passengers.isNotEmpty()) {
+                mapPassengers(parsed)
+            } else {
+                existing.passengers
+            }
+        val merged =
+            existing.copy(
+                pnr = parsed.pnr ?: existing.pnr,
+                trainNumber = parsed.trainNumber ?: existing.trainNumber,
+                trainName = parsed.trainName ?: existing.trainName,
+                from = parsed.from ?: existing.from,
+                boarding = parsed.boarding ?: existing.boarding,
+                to = parsed.to ?: existing.to,
+                startDate = parsed.startDate ?: existing.startDate,
+                departureAt = parsed.departureAt ?: existing.departureAt,
+                arrivalAt = parsed.arrivalAt ?: existing.arrivalAt,
+                travelClass = parsed.travelClass ?: existing.travelClass,
+                classLabel = parsed.classLabel ?: existing.classLabel,
+                quota = parsed.quota ?: existing.quota,
+                quotaLabel = parsed.quotaLabel ?: existing.quotaLabel,
+                distanceKm = parsed.distanceKm ?: existing.distanceKm,
+                bookedAt = parsed.bookedAt ?: existing.bookedAt,
+                transactionId = parsed.transactionId ?: existing.transactionId,
+                totalFarePaise = parsed.totalFarePaise ?: existing.totalFarePaise,
+                passengers = mergedPassengers,
+                pdfFileName = pdfFileName,
+                pdfSha256 = pdfSha256,
+                originalFileName = originalFileName ?: existing.originalFileName,
+                extractionMethod = extractionMethod,
+                updatedAt = now,
+            )
+        val missingAfterMerge =
+            buildSet {
+                if (merged.pnr.isNullOrBlank()) add(com.example.tripchecker.extraction.parser.TicketField.PNR)
+                if (merged.trainNumber.isNullOrBlank()) add(com.example.tripchecker.extraction.parser.TicketField.TRAIN_NUMBER)
+                if (merged.from == null) add(com.example.tripchecker.extraction.parser.TicketField.FROM)
+                if (merged.to == null) add(com.example.tripchecker.extraction.parser.TicketField.TO)
+                if (merged.departureAt == null) add(com.example.tripchecker.extraction.parser.TicketField.DEPARTURE_DATE)
+            }
+        return merged.copy(needsReview = missingAfterMerge.intersect(REQUIRED_TICKET_FIELDS).isNotEmpty())
     }
+
+    private fun mapPassengers(parsed: ParsedTicket): List<Passenger> =
+        parsed.passengers.map { row ->
+            Passenger(
+                id = UUID.randomUUID().toString(),
+                serial = row.serial,
+                name = row.name,
+                age = row.age,
+                gender = row.gender,
+                bookingStatusRaw = row.bookingStatusRaw,
+                currentStatusRaw = row.currentStatusRaw,
+                current =
+                    PassengerStatusParser.parse(row.currentStatusRaw)
+                        ?: PassengerStatusParser.parse(row.bookingStatusRaw),
+            )
+        }
 }

@@ -1,82 +1,55 @@
 package com.example.tripchecker.importer
 
-import android.net.Uri
-import com.example.tripchecker.data.file.TicketFileStore
+import com.example.tripchecker.data.file.StagedFile
 import com.example.tripchecker.data.file.TicketUriStager
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
+import kotlin.coroutines.cancellation.CancellationException
 
-/** App-scoped PDF import queue with immediate staging and sequential processing. */
+/** Request to import one PDF (URI resolved only in the Android stager). */
+data class ImportEnqueueRequest(
+    val uriString: String,
+    val displayName: String,
+)
+
+/** App-scoped PDF import queue: immediate enqueue, single worker processes sequentially. */
 class ImportManager(
     private val fileStore: TicketUriStager,
     private val importer: TicketImporter,
-    private val scope: CoroutineScope,
+    scope: CoroutineScope,
 ) {
     private val _items = MutableStateFlow<List<ImportItem>>(emptyList())
     val items: StateFlow<List<ImportItem>> = _items.asStateFlow()
 
-    fun enqueue(uris: List<Uri>) {
-        if (uris.isEmpty()) return
+    private val work = Channel<String>(Channel.UNLIMITED)
+
+    init {
+        scope.launch {
+            for (itemId in work) {
+                processItem(itemId)
+            }
+        }
+    }
+
+    fun enqueue(requests: List<ImportEnqueueRequest>) {
+        if (requests.isEmpty()) return
         val newItems =
-            uris.map { uri ->
+            requests.map { req ->
                 ImportItem(
                     id = UUID.randomUUID().toString(),
-                    displayName = uri.lastPathSegment ?: "ticket.pdf",
+                    displayName = req.displayName,
                     state = ImportItemState.Queued,
-                    sourceUri = uri,
+                    uriString = req.uriString,
                 )
             }
         _items.update { it + newItems }
-        scope.launch {
-            val staged = mutableListOf<Pair<ImportItem, TicketFileStore.StagedFile>>()
-            for (item in newItems) {
-                updateItem(item.id) { it.copy(state = ImportItemState.Reading) }
-                try {
-                    val file = fileStore.importFromUri(item.sourceUri)
-                    staged.add(item to file)
-                    updateItem(item.id) {
-                        it.copy(displayName = file.originalName, stagedFile = file)
-                    }
-                } catch (e: Exception) {
-                    updateItem(item.id) {
-                        it.copy(state = ImportItemState.Failed(e.message ?: "Import failed"))
-                    }
-                }
-            }
-            for ((item, file) in staged) {
-                updateItem(item.id) { it.copy(state = ImportItemState.Reading) }
-                try {
-                    when (val result = importer.process(file)) {
-                        is TicketImportResult.Saved ->
-                            updateItem(item.id) {
-                                it.copy(state = ImportItemState.Saved(result.ticketId))
-                            }
-                        is TicketImportResult.Updated ->
-                            updateItem(item.id) {
-                                it.copy(state = ImportItemState.Updated(result.ticketId))
-                            }
-                        is TicketImportResult.Duplicate ->
-                            updateItem(item.id) {
-                                it.copy(state = ImportItemState.Duplicate(result.existingTicketId))
-                            }
-                        is TicketImportResult.NeedsReview ->
-                            updateItem(item.id) {
-                                it.copy(state = ImportItemState.NeedsReview(result.ticketId))
-                            }
-                    }
-                } catch (e: Exception) {
-                    file.file.delete()
-                    updateItem(item.id) {
-                        it.copy(state = ImportItemState.Failed(e.message ?: "Processing failed"))
-                    }
-                }
-            }
-        }
+        newItems.forEach { work.trySend(it.id) }
     }
 
     fun clearFinished() {
@@ -92,6 +65,46 @@ class ImportManager(
         }
     }
 
+    private suspend fun processItem(itemId: String) {
+        val item = _items.value.firstOrNull { it.id == itemId } ?: return
+        var staged: StagedFile? = null
+        try {
+            staged = fileStore.importFromUri(item.uriString)
+            updateItem(itemId) {
+                it.copy(displayName = staged!!.originalName, state = ImportItemState.Reading)
+            }
+            when (val result = importer.process(staged)) {
+                is TicketImportResult.Saved ->
+                    updateItem(itemId) { it.copy(state = ImportItemState.Saved(result.ticketId), stagedFile = null) }
+                is TicketImportResult.Updated ->
+                    updateItem(itemId) { it.copy(state = ImportItemState.Updated(result.ticketId), stagedFile = null) }
+                is TicketImportResult.Duplicate ->
+                    updateItem(itemId) {
+                        it.copy(state = ImportItemState.Duplicate(result.existingTicketId), stagedFile = null)
+                    }
+                is TicketImportResult.NeedsReview ->
+                    updateItem(itemId) {
+                        it.copy(state = ImportItemState.NeedsReview(result.ticketId), stagedFile = null)
+                    }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            staged?.file?.delete()
+            updateItem(itemId) {
+                it.copy(state = ImportItemState.Failed(mapFailure(e)), stagedFile = null)
+            }
+        }
+    }
+
+    private fun mapFailure(e: Exception): String =
+        when (e.message) {
+            "Not a PDF" -> "Not a PDF"
+            "File too large" -> "File too large"
+            "Empty file" -> "Empty file"
+            else -> "Import failed"
+        }
+
     private fun updateItem(id: String, transform: (ImportItem) -> ImportItem) {
         _items.update { list -> list.map { if (it.id == id) transform(it) else it } }
     }
@@ -101,8 +114,8 @@ data class ImportItem(
     val id: String,
     val displayName: String,
     val state: ImportItemState,
-    val sourceUri: Uri,
-    val stagedFile: TicketFileStore.StagedFile? = null,
+    val uriString: String,
+    val stagedFile: StagedFile? = null,
 )
 
 sealed class ImportItemState {

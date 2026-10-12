@@ -1,8 +1,9 @@
 package com.example.tripchecker.importer
 
 import com.example.tripchecker.Fixtures
+import com.example.tripchecker.data.file.StagedFile
 import com.example.tripchecker.data.file.TicketFileOperations
-import com.example.tripchecker.data.file.TicketFileStore
+import com.example.tripchecker.data.file.ticketPdfFileName
 import com.example.tripchecker.data.repo.TicketRepository
 import com.example.tripchecker.domain.model.ExtractionMethod
 import com.example.tripchecker.domain.model.Ticket
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -26,64 +28,77 @@ class TicketImporterTest {
 
     @Test
     fun `new import saved`() = runTest {
+        val dir = File.createTempFile("tickets", "").apply { delete(); mkdirs() }
         val repo = FakeRepo()
-        val importer = importer(repo, FakeExtractor(Fixtures.load("ers_sample_text_layer.txt")))
-        val result = importer.process(staged("sha-new"))
+        val files = TrackingFileStore(dir)
+        val importer = importer(repo, files, FakeExtractor(Fixtures.load("ers_sample_text_layer.txt")))
+        val result = importer.process(staged("sha-new", dir))
         assertTrue(result is TicketImportResult.Saved)
     }
 
     @Test
     fun `same sha duplicate deletes staged`() = runTest {
+        val dir = File.createTempFile("tickets", "").apply { delete(); mkdirs() }
         val repo = FakeRepo(existingSha = "dup-sha")
-        val importer = importer(repo, FakeExtractor("text"))
-        val stagedFile = staged("dup-sha")
+        val importer = importer(repo, TrackingFileStore(dir), FakeExtractor("text"))
+        val stagedFile = staged("dup-sha", dir)
         val result = importer.process(stagedFile)
         assertTrue(result is TicketImportResult.Duplicate)
-        assertTrue(!stagedFile.file.exists())
+        assertFalse(stagedFile.file.exists())
     }
 
     @Test
-    fun `same pnr updates and keeps id`() = runTest {
-        val repo = FakeRepo(existingPnr = "8751652729", existingId = "keep-id")
-        val importer = importer(repo, FakeExtractor(Fixtures.load("ers_sample_text_layer.txt")))
-        val result = importer.process(staged("new-sha"))
+    fun `same pnr updates keeps id and new pdf`() = runTest {
+        val dir = File.createTempFile("tickets", "").apply { delete(); mkdirs() }
+        val oldSha = "aaaaaaaaaaaa"
+        val newSha = "bbbbbbbbbbbb"
+        val repo = FakeRepo(existingPnr = "8751652729", existingId = "keep-id", existingSha = oldSha, dir = dir)
+        val files = TrackingFileStore(dir)
+        val importer = importer(repo, files, FakeExtractor(Fixtures.load("ers_sample_text_layer.txt")))
+        val result = importer.process(staged(newSha, dir))
         assertTrue(result is TicketImportResult.Updated)
         assertEquals("keep-id", (result as TicketImportResult.Updated).ticketId)
-        assertEquals("link", repo.tickets["keep-id"]?.linkGroupId)
-        assertEquals("note", repo.tickets["keep-id"]?.notes)
+        val saved = repo.tickets["keep-id"]!!
+        val newName = ticketPdfFileName("keep-id", newSha)
+        assertEquals(newName, saved.pdfFileName)
+        assertTrue(File(dir, newName).exists())
+        assertTrue(files.deleted.contains(ticketPdfFileName("keep-id", oldSha)))
     }
 
     @Test
     fun `missing pnr needs review`() = runTest {
+        val dir = File.createTempFile("tickets", "").apply { delete(); mkdirs() }
         val repo = FakeRepo()
-        val importer = importer(repo, FakeExtractor("Electronic Reservation Slip\nTrain No"))
-        val result = importer.process(staged("sha-nopnr"))
+        val importer = importer(repo, TrackingFileStore(dir), FakeExtractor("Electronic Reservation Slip\nTrain No"))
+        val result = importer.process(staged("sha-nopnr", dir))
         assertTrue(result is TicketImportResult.NeedsReview)
     }
 
     @Test
     fun `null extractor needs review keeps pdf`() = runTest {
+        val dir = File.createTempFile("tickets", "").apply { delete(); mkdirs() }
         val repo = FakeRepo()
-        val importer = importer(repo, FakeExtractor(null))
-        val stagedFile = staged("sha-blank")
-        val result = importer.process(stagedFile)
+        val files = TrackingFileStore(dir)
+        val importer = importer(repo, files, FakeExtractor(null))
+        val result = importer.process(staged("sha-blank", dir))
         assertTrue(result is TicketImportResult.NeedsReview)
-        assertTrue(File(stagedFile.file.parentFile, "${(result as TicketImportResult.NeedsReview).ticketId}.pdf").exists())
+        val id = (result as TicketImportResult.NeedsReview).ticketId
+        assertTrue(File(dir, ticketPdfFileName(id, "sha-blank")).exists())
     }
 
-    private fun importer(repo: FakeRepo, extractor: FakeExtractor) =
+    private fun importer(repo: FakeRepo, files: TicketFileOperations, extractor: FakeExtractor) =
         TicketImporter(
             repository = repo,
-            fileStore = FakeFileStore(),
+            fileStore = files,
             extractor = extractor,
             parsers = listOf(parser),
             clock = fixedClock,
         )
 
-    private fun staged(sha: String): TicketFileStore.StagedFile {
-        val file = File.createTempFile("ticket", ".pdf")
-        file.writeText("dummy")
-        return TicketFileStore.StagedFile(file, sha, "t.pdf", file.length())
+    private fun staged(sha: String, dir: File): StagedFile {
+        val file = File(dir, "staging-${System.nanoTime()}.pdf")
+        file.writeBytes("%PDF-1.4\ncontent".encodeToByteArray())
+        return StagedFile(file, sha, "t.pdf", file.length())
     }
 
     private class FakeExtractor(private val text: String?) : PdfTextExtractor {
@@ -91,16 +106,20 @@ class TicketImporterTest {
             text?.let { ExtractedText(it, ExtractionMethod.TEXT_LAYER, 1) }
     }
 
-    private class FakeFileStore : TicketFileOperations {
-        override suspend fun moveToTicketId(staged: File, ticketId: String): String {
-            val dest = File(staged.parentFile, "$ticketId.pdf")
-            staged.renameTo(dest)
+    private class TrackingFileStore(private val dir: File) : TicketFileOperations {
+        val deleted = mutableListOf<String>()
+
+        override suspend fun moveStagedToTicket(staged: File, ticketId: String, sha256: String): String {
+            val dest = File(dir, ticketPdfFileName(ticketId, sha256))
+            staged.copyTo(dest, overwrite = true)
+            staged.delete()
             return dest.name
         }
 
         override suspend fun delete(fileName: String?) {
-            fileName?.let { name ->
-                // no-op in tests
+            if (fileName != null) {
+                deleted.add(fileName)
+                File(dir, fileName).delete()
             }
         }
     }
@@ -109,21 +128,25 @@ class TicketImporterTest {
         private val existingSha: String? = null,
         private val existingPnr: String? = null,
         private val existingId: String = "existing",
+        private val dir: File? = null,
     ) : TicketRepository {
         val tickets = mutableMapOf<String, Ticket>()
 
         init {
             if (existingSha != null || existingPnr != null) {
+                val sha = existingSha ?: "oldsha"
+                val pdfName = ticketPdfFileName(existingId, sha)
+                dir?.let { File(it, pdfName).writeBytes(byteArrayOf(1, 2, 3)) }
                 val t =
                     Ticket(
                         id = existingId,
                         pnr = existingPnr,
-                        trainNumber = null,
+                        trainNumber = "17001",
                         trainName = null,
                         from = null,
                         boarding = null,
                         to = null,
-                        startDate = null,
+                        startDate = java.time.LocalDate.of(2026, 8, 3),
                         departureAt = null,
                         arrivalAt = null,
                         travelClass = null,
@@ -135,7 +158,7 @@ class TicketImporterTest {
                         transactionId = null,
                         totalFarePaise = null,
                         passengers = emptyList(),
-                        pdfFileName = "old.pdf",
+                        pdfFileName = pdfName,
                         pdfSha256 = existingSha,
                         originalFileName = null,
                         extractionMethod = ExtractionMethod.MANUAL,
