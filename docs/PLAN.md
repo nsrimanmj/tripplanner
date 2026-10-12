@@ -737,4 +737,4 @@ Put real PDFs in `samples/` (gitignored) and push them with `adb push samples/ /
 - 2026-10-12 09:45 · M6.4 · docs/QA.md + README.md build prerequisites · —
 - 2026-10-12 09:45 · M6.3 partial · PdfBox R8 keep/dontwarn rules in rules.keep · assembleRelease not run (Gradle download blocked)
 - 2026-10-12 12:00 · M5.5–M5.8 · Trip detail, edit ticket, TicketActions, HomeUiMapper/LinkReturnCandidates tests · HomeUiMapperTest, LinkReturnCandidatesTest, EditTicketMapperTest, ImportManagerTest
-- 2026-10-12 12:15 · M6.2–M6.5 · lint config, Compose previews, KDoc pass, verify.ps1, TripDetail snackbar fix · —
+- 2026-10-12 12:15 · M6.5 · Compose previews, KDoc pass, verify.ps1, lint.xml, TripDetail snackbar fix · —
