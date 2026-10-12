@@ -33,6 +33,7 @@ fun AppNavHost(
             val vm: HomeViewModel = viewModel(factory = container.viewModelFactory)
             HomeScreen(
                 viewModel = vm,
+                fileStore = container.ticketFileStore,
                 onOpenTrip = { navController.navigate(TripDetail(it)) },
                 onEditTicket = { navController.navigate(EditTicket(it)) },
                 onPdfsSelected = { uris ->
@@ -57,14 +58,17 @@ fun AppNavHost(
                 viewModel(factory = TripDetailViewModel.Factory(container, route.anchorTicketId))
             TripDetailScreen(
                 viewModel = vm,
+                fileStore = container.ticketFileStore,
                 onBack = { navController.popBackStack() },
                 onEdit = { navController.navigate(EditTicket(it)) },
             )
         }
         composable<EditTicket> { entry ->
             val route = entry.toRoute<EditTicket>()
+            val editVm: com.example.tripchecker.ui.edit.EditTicketViewModel =
+                viewModel(factory = com.example.tripchecker.ui.edit.EditTicketViewModel.Factory(container, route.ticketId))
             EditTicketScreen(
-                ticketId = route.ticketId,
+                viewModel = editVm,
                 onBack = { navController.popBackStack() },
             )
         }

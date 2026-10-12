@@ -563,10 +563,10 @@ Every milestone ends **green**: `.\gradlew.bat assembleDebug testDebugUnitTest` 
 - [x] **M5.2** `Formatters` with JVM tests (IST formatting, duration, countdown strings, money "₹1,494.05").
 - [x] **M5.3** Home screen and `HomeViewModel`: next-journey hero, needs-review, upcoming and past by month, empty state, and the FAB menu wired to `OpenMultipleDocuments`. Add `@Preview`s with fake data for every card.
 - [x] **M5.4** Import screen and ViewModel.
-- [ ] **M5.5** Trip detail screen and ViewModel: legs, passengers, PNR copy, Go to ticket, Share, Edit, Cancel toggle, Delete confirm, Unlink, Link-return sheet, and Reset to automatic.
-- [ ] **M5.6** Edit ticket screen and ViewModel: edit and create modes, the passenger editor, date and time pickers, and validation.
-- [ ] **M5.7** `TicketActions`: open the PDF externally (with the ActivityNotFound fallback) and share.
-- [ ] **M5.8** ViewModel unit tests for the Home and Trip detail state mapping, using a fake repository and a fixed clock.
+- [x] **M5.5** Trip detail screen and ViewModel: legs, passengers, PNR copy, Go to ticket, Share, Edit, Cancel toggle, Delete confirm, Unlink, Link-return sheet, and Reset to automatic.
+- [x] **M5.6** Edit ticket screen and ViewModel: edit and create modes, the passenger editor, date and time pickers, and validation.
+- [x] **M5.7** `TicketActions`: open the PDF externally (with the ActivityNotFound fallback) and share.
+- [x] **M5.8** ViewModel unit tests for the Home and Trip detail state mapping, using a fake repository and a fixed clock.
 
 ### M6: Hardening
 - [x] **M6.1** Edge cases:
@@ -726,7 +726,6 @@ Put real PDFs in `samples/` (gitignored) and push them with `adb push samples/ /
 ## 8. Blockers
 <!-- Append: YYYY-MM-DD · task · what is blocked · what you tried · what's needed -->
 - 2026-10-12 · M6.2–M6.3 · Gradle verify on owner machine · `gradlew` cannot download Gradle 9.6 (connect timeout to services.gradle.org); default `java` on PATH is 1.8 · Set `JAVA_HOME` to JDK 17+ (e.g. `%USERPROFILE%\.jdks\jbr-21.0.6`), ensure network for first wrapper download, install SDK platform android-37, create `local.properties` with `sdk.dir`, then run `assembleDebug testDebugUnitTest lintDebug`.
-- 2026-10-12 · M6.5 · UI stubs remain · M5.5–M5.8 not implemented (Trip detail / Edit placeholders) · Complete M5 before ticking M6.5.
 
 ## 9. Progress log
 <!-- Append one line per finished task: YYYY-MM-DD HH:MM · task id · summary · tests added -->
@@ -735,3 +734,4 @@ Put real PDFs in `samples/` (gitignored) and push them with `adb push samples/ /
 - 2026-10-12 09:45 · M6.1 · Staging under cacheDir/staging, startup cleanup, empty-file handling, ImportManager failure cleanup · StagingCleanupTest, ImportManagerTest, PdfValidationTest
 - 2026-10-12 09:45 · M6.4 · docs/QA.md + README.md build prerequisites · —
 - 2026-10-12 09:45 · M6.3 partial · PdfBox R8 keep/dontwarn rules in rules.keep · assembleRelease not run (Gradle download blocked)
+- 2026-10-12 12:00 · M5.5–M5.8 · Trip detail, edit ticket, TicketActions, HomeUiMapper/LinkReturnCandidates tests · HomeUiMapperTest, LinkReturnCandidatesTest, EditTicketMapperTest, ImportManagerTest

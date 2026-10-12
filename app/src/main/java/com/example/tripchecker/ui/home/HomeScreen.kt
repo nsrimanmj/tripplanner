@@ -36,23 +36,31 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.tripchecker.R
 import com.example.tripchecker.domain.model.JourneyGroup
 import com.example.tripchecker.domain.model.JourneyKind
+import androidx.compose.ui.platform.LocalContext
+import com.example.tripchecker.data.file.TicketFileStore
 import com.example.tripchecker.ui.common.Formatters
+import com.example.tripchecker.ui.common.TicketActions
 
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
+    fileStore: TicketFileStore,
     onOpenTrip: (String) -> Unit,
     onEditTicket: (String) -> Unit,
     onPdfsSelected: (List<android.net.Uri>) -> Unit,
     onAddManual: () -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     HomeContent(
         state = state,
         onOpenTrip = onOpenTrip,
         onEditTicket = onEditTicket,
         onPdfsSelected = onPdfsSelected,
         onAddManual = onAddManual,
+        onGoToTicket = {
+            TicketActions.openPdfByFileName(context, fileStore, state.nextJourney?.pdfFileName)
+        },
     )
 }
 
@@ -64,6 +72,7 @@ fun HomeContent(
     onEditTicket: (String) -> Unit,
     onPdfsSelected: (List<android.net.Uri>) -> Unit,
     onAddManual: () -> Unit,
+    onGoToTicket: () -> Unit = {},
 ) {
     var fabExpanded by remember { mutableStateOf(false) }
     val pdfLauncher =
@@ -112,7 +121,7 @@ fun HomeContent(
         ) {
             state.nextJourney?.let { next ->
                 item {
-                    NextJourneyCard(next, onOpenTrip)
+                    NextJourneyCard(next, onOpenTrip, onGoToTicket)
                 }
             }
             if (state.needsReview.isNotEmpty()) {
@@ -161,7 +170,11 @@ private fun EmptyHomeState(modifier: Modifier = Modifier, onImport: () -> Unit) 
 }
 
 @Composable
-private fun NextJourneyCard(next: NextJourneyUi, onOpenTrip: (String) -> Unit) {
+private fun NextJourneyCard(
+    next: NextJourneyUi,
+    onOpenTrip: (String) -> Unit,
+    onGoToTicket: () -> Unit,
+) {
     ElevatedCard(
         modifier = Modifier.fillMaxWidth().clickable { onOpenTrip(next.ticketId) },
     ) {
@@ -171,6 +184,11 @@ private fun NextJourneyCard(next: NextJourneyUi, onOpenTrip: (String) -> Unit) {
             Text(next.route, style = MaterialTheme.typography.titleLarge)
             Text(next.departureTime)
             Text(next.berthSummary, style = MaterialTheme.typography.headlineSmall)
+            if (next.pdfFileName != null) {
+                TextButton(onClick = onGoToTicket) {
+                    Text(stringResource(R.string.go_to_ticket))
+                }
+            }
         }
     }
 }
