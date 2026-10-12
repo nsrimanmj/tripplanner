@@ -18,6 +18,7 @@ class PdfValidationTest {
     @Test
     fun `size limit`() {
         assertTrue(PdfValidation.isWithinSizeLimit(1024))
+        assertFalse(PdfValidation.isWithinSizeLimit(0))
         assertFalse(PdfValidation.isWithinSizeLimit(PdfValidation.MAX_BYTES + 1))
     }
 }

@@ -17,6 +17,14 @@ class TicketFileStore(
     private val ticketsDir: File
         get() = File(context.filesDir, "tickets").also { it.mkdirs() }
 
+    private val stagingDir: File
+        get() = File(context.cacheDir, StagingCleanup.STAGING_DIR_NAME).also { it.mkdirs() }
+
+    /** Clears orphan staged PDFs (see M6.1 process-death handling). */
+    fun clearOrphanStaging() {
+        StagingCleanup.clean(stagingDir, ticketsDir)
+    }
+
     data class StagedFile(
         val file: File,
         val sha256: String,
@@ -27,10 +35,14 @@ class TicketFileStore(
     override suspend fun importFromUri(uri: Uri): StagedFile =
         withContext(Dispatchers.IO) {
             val originalName = queryDisplayName(uri) ?: "ticket.pdf"
-            val temp = File(ticketsDir, "staging-${System.nanoTime()}.pdf")
+            val temp = File(stagingDir, "${System.nanoTime()}.pdf")
             context.contentResolver.openInputStream(uri)?.use { input ->
                 copyWithDigest(input, temp)
             } ?: error("Cannot open URI")
+            if (temp.length() == 0L) {
+                temp.delete()
+                error("Empty file")
+            }
             val header = temp.inputStream().use { it.readNBytes(5) }
             if (!PdfValidation.isPdfHeader(header)) {
                 temp.delete()

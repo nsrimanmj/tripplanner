@@ -70,6 +70,7 @@ class ImportManager(
                             }
                     }
                 } catch (e: Exception) {
+                    file.file.delete()
                     updateItem(item.id) {
                         it.copy(state = ImportItemState.Failed(e.message ?: "Processing failed"))
                     }

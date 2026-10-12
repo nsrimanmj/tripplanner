@@ -14,5 +14,6 @@ class TripCheckerApp : Application() {
         super.onCreate()
         PDFBoxResourceLoader.init(applicationContext)
         container = AppContainer(this)
+        container.ticketFileStore.clearOrphanStaging()
     }
 }
