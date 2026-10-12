@@ -32,9 +32,13 @@ class OfflineTicketRepository(
         return dao.observeById(entity.id).map { it?.toDomain() }.first()
     }
 
+    override suspend fun getRawText(ticketId: String): String? = dao.getRawText(ticketId)
+
     override suspend fun upsert(ticket: Ticket, rawText: String?) {
         val passengers = ticket.passengers.map { it.toEntity(ticket.id) }
-        dao.upsertWithPassengers(ticket.toEntity(rawText), passengers)
+        val rawToStore =
+            rawText ?: dao.getRawText(ticket.id)
+        dao.upsertWithPassengers(ticket.toEntity(rawToStore), passengers)
     }
 
     override suspend fun delete(id: String) {

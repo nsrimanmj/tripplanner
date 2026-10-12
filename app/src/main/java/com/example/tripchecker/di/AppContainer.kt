@@ -28,6 +28,8 @@ class AppContainer(
 
     val clock: Clock = Clock.systemDefaultZone()
 
+    val ticketParser: IrctcErsParser = IrctcErsParser()
+
     private val database: AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, "tripchecker.db").build()
 
@@ -51,7 +53,7 @@ class AppContainer(
             repository = ticketRepository,
             fileStore = ticketFileStore,
             extractor = textExtractor,
-            parsers = listOf(IrctcErsParser()),
+            parsers = listOf(ticketParser),
             clock = clock,
         )
 

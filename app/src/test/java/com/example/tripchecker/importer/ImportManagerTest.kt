@@ -113,6 +113,8 @@ class ImportManagerTest {
 
         override suspend fun findBySha(sha256: String): Ticket? = null
 
+        override suspend fun getRawText(ticketId: String): String? = null
+
         override suspend fun upsert(ticket: Ticket, rawText: String?) = Unit
 
         override suspend fun delete(id: String) = Unit

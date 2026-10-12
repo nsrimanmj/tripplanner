@@ -26,6 +26,9 @@ interface TicketDao {
     @Query("SELECT * FROM tickets WHERE pdfSha256 = :sha LIMIT 1")
     suspend fun getBySha(sha: String): TicketEntity?
 
+    @Query("SELECT rawText FROM tickets WHERE id = :id")
+    suspend fun getRawText(id: String): String?
+
     @Upsert
     suspend fun upsertTicket(ticket: TicketEntity)
 

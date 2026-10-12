@@ -66,7 +66,10 @@ fun AppNavHost(
         composable<EditTicket> { entry ->
             val route = entry.toRoute<EditTicket>()
             val editVm: com.example.tripchecker.ui.edit.EditTicketViewModel =
-                viewModel(factory = com.example.tripchecker.ui.edit.EditTicketViewModel.Factory(container, route.ticketId))
+                viewModel(
+                    key = route.ticketId ?: "create",
+                    factory = com.example.tripchecker.ui.edit.EditTicketViewModel.Factory(container, route.ticketId),
+                )
             EditTicketScreen(
                 viewModel = editVm,
                 onBack = { navController.popBackStack() },

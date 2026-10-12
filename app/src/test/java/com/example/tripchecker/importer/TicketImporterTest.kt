@@ -155,6 +155,7 @@ class TicketImporterTest {
         override fun observeTicket(id: String): Flow<Ticket?> = flowOf(tickets[id])
         override suspend fun findByPnr(pnr: String): Ticket? = tickets.values.firstOrNull { it.pnr == pnr }
         override suspend fun findBySha(sha: String): Ticket? = tickets.values.firstOrNull { it.pdfSha256 == sha }
+        override suspend fun getRawText(ticketId: String): String? = null
         override suspend fun upsert(ticket: Ticket, rawText: String?) {
             tickets[ticket.id] = ticket
         }

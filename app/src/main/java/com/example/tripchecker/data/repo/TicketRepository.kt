@@ -9,6 +9,7 @@ interface TicketRepository {
     fun observeTicket(id: String): Flow<Ticket?>
     suspend fun findByPnr(pnr: String): Ticket?
     suspend fun findBySha(sha: String): Ticket?
+    suspend fun getRawText(ticketId: String): String?
     suspend fun upsert(ticket: Ticket, rawText: String? = null)
     suspend fun delete(id: String)
     suspend fun setCancelled(id: String, value: Boolean)

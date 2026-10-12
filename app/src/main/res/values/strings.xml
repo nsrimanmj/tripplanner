@@ -52,6 +52,11 @@
     <string name="link_return_empty">No other one-way tickets available</string>
     <string name="reset_pairing">Reset to automatic pairing</string>
     <string name="save">Save</string>
+    <string name="edit_save_validation_error">Some required fields are still missing.</string>
+    <string name="edit_missing_only">Still required: %1$s</string>
+    <string name="edit_loading">Loading…</string>
+    <string name="field_departure_date_short">departure date &amp; time</string>
+    <string name="edit_save_failed">Could not save. This PNR may already exist on another ticket.</string>
     <string name="ok">OK</string>
     <string name="field_pnr">PNR</string>
     <string name="field_train_number">Train number</string>
