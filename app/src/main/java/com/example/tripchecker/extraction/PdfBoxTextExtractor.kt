@@ -9,6 +9,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /** Reads the PDF text layer via PdfBox-Android. */
+/** PdfBox-Android text-layer extraction with PNR usability check. */
 class PdfBoxTextExtractor : PdfTextExtractor {
     override suspend fun extract(file: File): ExtractedText? =
         withContext(Dispatchers.IO) {

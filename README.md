@@ -20,9 +20,12 @@ From the repo root (PowerShell):
 $env:JAVA_HOME = "$env:USERPROFILE\.jdks\jbr-21.0.6"   # adjust to your JDK
 .\gradlew.bat assembleDebug
 .\gradlew.bat testDebugUnitTest
-.\gradlew.bat lintDebug          # from M6 onward
+.\gradlew.bat lintDebug          # M6 gate
+.\gradlew.bat assembleRelease    # M6.3 R8 check (release optimization)
 .\gradlew.bat installDebug       # device/emulator required
 ```
+
+If the Gradle wrapper cannot download (corporate network), use Android Studio **Terminal** (same JDK/SDK as the IDE) or run `scripts\verify.ps1`.
 
 Manual QA: [`docs/QA.md`](docs/QA.md).
 

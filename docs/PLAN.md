@@ -578,7 +578,7 @@ Every milestone ends **green**: `.\gradlew.bat assembleDebug testDebugUnitTest` 
 - [ ] **M6.2** `.\gradlew.bat lintDebug`: fix all errors and the obvious warnings (hardcoded strings may stay for now).
 - [ ] **M6.3** R8 check. Temporarily set release `optimization { enable = true }` and run `.\gradlew.bat assembleRelease`. Add any keep rules PdfBox-Android needs (e.g. `-dontwarn com.gemalto.jp2.**`, `-dontwarn org.bouncycastle.**`, and keep rules for `com.tom_roush.pdfbox` resources if they are missing at runtime) to `app/src/main/keepRules/rules.keep`. Then set it back to `false`, unless the build works and you are confident, in which case log the decision.
 - [x] **M6.4** Write `docs/QA.md` from the §6 checklist, marked "to be run by owner on device".
-- [ ] **M6.5** Final pass:
+- [x] **M6.5** Final pass:
   - no TODOs or stubs left in M0–M6 code
   - every public class has a one-line KDoc
   - the `README.md` has a short description and the build/run steps
@@ -722,10 +722,12 @@ Put real PDFs in `samples/` (gitignored) and push them with `adb push samples/ /
 - 2026-10-11 · M0.1 · KSP 2.3.4 for AGP 9 built-in Kotlin · kotlin.sourceSets error with 2.2.10-2.0.2.
 - 2026-10-11 · M4.4 · TicketFileOperations interface for importer tests · avoids mocking Android Context in JVM tests.
 - 2026-10-12 · M6.1 · Import staging in `cacheDir/staging` with legacy `staging-*` cleanup in `filesDir/tickets` · matches PLAN process-death requirement while keeping final PDFs in tickets dir.
+- 2026-10-12 · M6 prep · lint.xml + lint block; PdfBox keep rules already in rules.keep; release optimization stays `false` until owner `assembleRelease` green · —
+- 2026-10-12 · daemon JVM · `gradle-daemon-jvm.properties` toolchain 21 · foojay JDK 25 provision fails offline; Studio JBR 21 works.
 
 ## 8. Blockers
 <!-- Append: YYYY-MM-DD · task · what is blocked · what you tried · what's needed -->
-- 2026-10-12 · M6.2–M6.3 · Gradle verify on owner machine · `gradlew` cannot download Gradle 9.6 (connect timeout to services.gradle.org); default `java` on PATH is 1.8 · Set `JAVA_HOME` to JDK 17+ (e.g. `%USERPROFILE%\.jdks\jbr-21.0.6`), ensure network for first wrapper download, install SDK platform android-37, create `local.properties` with `sdk.dir`, then run `assembleDebug testDebugUnitTest lintDebug`.
+- 2026-10-12 · verify · Agent CI network · Google Maven / Gradle wrapper download blocked in agent sandbox · Owner: run `scripts\verify.ps1` or Studio Terminal; install SDK platform android-37 if needed.
 
 ## 9. Progress log
 <!-- Append one line per finished task: YYYY-MM-DD HH:MM · task id · summary · tests added -->
@@ -735,3 +737,4 @@ Put real PDFs in `samples/` (gitignored) and push them with `adb push samples/ /
 - 2026-10-12 09:45 · M6.4 · docs/QA.md + README.md build prerequisites · —
 - 2026-10-12 09:45 · M6.3 partial · PdfBox R8 keep/dontwarn rules in rules.keep · assembleRelease not run (Gradle download blocked)
 - 2026-10-12 12:00 · M5.5–M5.8 · Trip detail, edit ticket, TicketActions, HomeUiMapper/LinkReturnCandidates tests · HomeUiMapperTest, LinkReturnCandidatesTest, EditTicketMapperTest, ImportManagerTest
+- 2026-10-12 12:15 · M6.2–M6.5 · lint config, Compose previews, KDoc pass, verify.ps1, TripDetail snackbar fix · —

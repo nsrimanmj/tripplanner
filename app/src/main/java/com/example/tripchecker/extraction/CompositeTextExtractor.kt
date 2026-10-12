@@ -4,6 +4,7 @@ import com.example.tripchecker.extraction.model.ExtractedText
 import java.io.File
 
 /** Tries the text layer first, then OCR. */
+/** Tries the PDF text layer first, then OCR. */
 class CompositeTextExtractor(
     private val textLayer: PdfTextExtractor,
     private val ocr: PdfTextExtractor,

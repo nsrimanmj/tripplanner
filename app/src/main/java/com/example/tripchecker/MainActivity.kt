@@ -10,6 +10,7 @@ import androidx.core.content.IntentCompat
 import com.example.tripchecker.ui.navigation.AppNavHost
 import com.example.tripchecker.ui.theme.TripcheckerTheme
 
+/** Single activity: Compose navigation and PDF share/view intents. */
 class MainActivity : ComponentActivity() {
     private var navigateImportOnStart = false
 

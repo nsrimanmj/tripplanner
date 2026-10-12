@@ -26,7 +26,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -51,6 +53,7 @@ fun TripDetailScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     var deleteLegId by remember { mutableStateOf<String?>(null) }
     var linkSheet by remember { mutableStateOf(false) }
 
@@ -71,27 +74,30 @@ fun TripDetailScreen(
         onCopyPnr = { pnr ->
             val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             cm.setPrimaryClip(ClipData.newPlainText("pnr", pnr))
-            snackbar.showSnackbar(context.getString(R.string.pnr_copied))
+            scope.launch { snackbar.showSnackbar(context.getString(R.string.pnr_copied)) }
         },
         onGoToTicket = { leg ->
             when (TicketActions.openPdf(context, fileStore, leg)) {
                 OpenPdfResult.NoPdfApp -> {
-                    val result =
-                        snackbar.showSnackbar(
-                            message = context.getString(R.string.no_pdf_app),
-                            actionLabel = context.getString(R.string.share_pdf),
-                        )
-                    if (result == SnackbarResult.ActionPerformed) {
-                        TicketActions.sharePdf(context, fileStore, leg)
+                    scope.launch {
+                        val result =
+                            snackbar.showSnackbar(
+                                message = context.getString(R.string.no_pdf_app),
+                                actionLabel = context.getString(R.string.share_pdf),
+                            )
+                        if (result == SnackbarResult.ActionPerformed) {
+                            TicketActions.sharePdf(context, fileStore, leg)
+                        }
                     }
                 }
-                OpenPdfResult.MissingFile -> snackbar.showSnackbar(context.getString(R.string.pdf_missing))
+                OpenPdfResult.MissingFile ->
+                    scope.launch { snackbar.showSnackbar(context.getString(R.string.pdf_missing)) }
                 OpenPdfResult.Opened -> Unit
             }
         },
         onShare = { leg ->
             if (!TicketActions.sharePdf(context, fileStore, leg)) {
-                snackbar.showSnackbar(context.getString(R.string.pdf_missing))
+                scope.launch { snackbar.showSnackbar(context.getString(R.string.pdf_missing)) }
             }
         },
         onToggleCancelled = { leg -> viewModel.toggleCancelled(leg.id, !leg.isCancelled) },

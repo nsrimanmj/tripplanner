@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.time.Clock
 
+/** Room-backed [TicketRepository] with PDF file cleanup on delete. */
 class OfflineTicketRepository(
     private val dao: TicketDao,
     private val fileStore: TicketFileStore,

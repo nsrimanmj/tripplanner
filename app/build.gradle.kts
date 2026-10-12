@@ -36,6 +36,11 @@ android {
     buildFeatures {
         compose = true
     }
+    lint {
+        abortOnError = true
+        warningsAsErrors = false
+        lintConfig = file("lint.xml")
+    }
 }
 
 room {
