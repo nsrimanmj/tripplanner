@@ -21,6 +21,8 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -28,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -39,7 +42,7 @@ import com.example.tripchecker.domain.model.JourneyKind
 import androidx.compose.ui.platform.LocalContext
 import com.example.tripchecker.data.file.TicketFileStore
 import com.example.tripchecker.ui.common.Formatters
-import com.example.tripchecker.ui.common.TicketActions
+import com.example.tripchecker.ui.common.PdfOpenFeedback
 
 @Composable
 fun HomeScreen(
@@ -52,14 +55,30 @@ fun HomeScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val pdfMessages =
+        PdfOpenFeedback.Messages(
+            noPdfApp = stringResource(R.string.no_pdf_app),
+            sharePdf = stringResource(R.string.share_pdf),
+            pdfMissing = stringResource(R.string.pdf_missing),
+        )
     HomeContent(
         state = state,
+        snackbarHostState = snackbar,
         onOpenTrip = onOpenTrip,
         onEditTicket = onEditTicket,
         onPdfsSelected = onPdfsSelected,
         onAddManual = onAddManual,
         onGoToTicket = {
-            TicketActions.openPdfByFileName(context, fileStore, state.nextJourney?.pdfFileName)
+            PdfOpenFeedback.openByFileName(
+                scope = scope,
+                snackbar = snackbar,
+                context = context,
+                fileStore = fileStore,
+                pdfFileName = state.nextJourney?.pdfFileName,
+                messages = pdfMessages,
+            )
         },
     )
 }
@@ -68,6 +87,7 @@ fun HomeScreen(
 @Composable
 fun HomeContent(
     state: HomeUiState,
+    snackbarHostState: SnackbarHostState = SnackbarHostState(),
     onOpenTrip: (String) -> Unit,
     onEditTicket: (String) -> Unit,
     onPdfsSelected: (List<android.net.Uri>) -> Unit,
@@ -80,6 +100,7 @@ fun HomeContent(
             if (uris.isNotEmpty()) onPdfsSelected(uris)
         }
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(title = { Text(stringResource(R.string.app_name)) })
         },

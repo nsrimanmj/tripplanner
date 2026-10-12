@@ -124,7 +124,7 @@ Reviewed: commits `1633a09` … `bd19c0f` (all code on `main`) on 2026-10-12.
 - **Fix:** `.filter { !it.isCancelled && … }`. Consider also skipping legs where every passenger's `current.code == "CAN"`.
 - **Test:** a cancelled leg departing before a non-cancelled leg → the hero is the non-cancelled one.
 
-### - [ ] P1-7 · Journey status never refreshes while a screen is open; Home queries Room twice
+### - [x] P1-7 · Journey status never refreshes while a screen is open; Home queries Room twice
 - **Where:** [ObserveJourneysUseCase.kt:15-18](../app/src/main/java/com/example/tripchecker/domain/ObserveJourneysUseCase.kt:15), [HomeViewModel.kt:55-62](../app/src/main/java/com/example/tripchecker/ui/home/HomeViewModel.kt:55), [TripDetailViewModel.kt:39-43](../app/src/main/java/com/example/tripchecker/ui/trip/TripDetailViewModel.kt:39).
 - **Why:**
   - Groups (and so UPCOMING / IN_PROGRESS / PAST) are computed with `clock.instant()` **at DB emission**. The 60 s ticker only re-runs `HomeUiMapper` with the old groups. A train that departs while Home is open stays "Upcoming"; the trip-detail chip is likewise stale.
@@ -143,7 +143,7 @@ Reviewed: commits `1633a09` … `bd19c0f` (all code on `main`) on 2026-10-12.
   - Display with `BigDecimal.valueOf(paise, 2).toPlainString()`.
 - **Test:** round-trip `"128.14"`; `147000` ↔ `"1470.00"`; a comma input.
 
-### - [ ] P1-9 · Staging copies the whole stream before checking size or type; SHA-256 is computed twice
+### - [x] P1-9 · Staging copies the whole stream before checking size or type; SHA-256 is computed twice
 - **Where:** [TicketFileStore.kt:35-57](../app/src/main/java/com/example/tripchecker/data/file/TicketFileStore.kt:35), [:87-105](../app/src/main/java/com/example/tripchecker/data/file/TicketFileStore.kt:87).
 - **Why:**
   - A 2 GB (or endless) provider stream is fully written to `cacheDir` before the 20 MB check, which can fill storage.
@@ -157,13 +157,13 @@ Reviewed: commits `1633a09` … `bd19c0f` (all code on `main`) on 2026-10-12.
   - Extract the hashing into the pure `PdfValidation` helper and unit-test it (the original M3.2 requirement).
 - **Also:** `staged.renameTo(dest)` at [TicketFileStore.kt:70-72](../app/src/main/java/com/example/tripchecker/data/file/TicketFileStore.kt:70) ignores the `false` return. The DB then stores a name with no file behind it, and the staged copy is wiped at the next start. Check the return value; fall back to copy + delete; throw on failure.
 
-### - [ ] P1-10 · A failure after the PDF is moved leaves an orphan PDF in `files/tickets/`
+### - [x] P1-10 · A failure after the PDF is moved leaves an orphan PDF in `files/tickets/`
 - **Where:** [ImportManager.kt:72-73](../app/src/main/java/com/example/tripchecker/importer/ImportManager.kt:72) deletes `file.file` (the staging path). After `moveToTicketId` that path no longer exists, so a failed `repository.upsert` leaves `tickets/<id>.pdf` unreferenced forever. `StagingCleanup` only removes `staging-*`.
 - **Fix:**
   - `TicketImporter` owns the cleanup: on failure after the move, delete the moved file.
   - Add a startup reconcile, off the main thread: delete files in `tickets/` that no DB row references.
 
-### - [ ] P1-11 · Re-import overwrites the owner's manual corrections with `null`
+### - [x] P1-11 · Re-import overwrites the owner's manual corrections with `null`
 - **Where:** [ParsedTicketMapper.kt:71-91](../app/src/main/java/com/example/tripchecker/importer/ParsedTicketMapper.kt:71).
 - **Failure:** the owner fixed the station or class by hand. A new OCR download misses that field → it is overwritten with `null` and `needsReview` may flip on.
 - **Fix:**
@@ -171,35 +171,35 @@ Reviewed: commits `1633a09` … `bd19c0f` (all code on `main`) on 2026-10-12.
   - Keep the existing passengers if the parse found none.
   - Recompute `needsReview` on the **merged** ticket. That also removes the duplicated computation at line 81.
 
-### - [ ] P1-12 · Deleting one leg of a manual pair leaves a one-leg "Custom" trip forever
+### - [x] P1-12 · Deleting one leg of a manual pair leaves a one-leg "Custom" trip forever
 - **Where:** [OfflineTicketRepository.kt:44-48](../app/src/main/java/com/example/tripchecker/data/repo/OfflineTicketRepository.kt:44).
 - **Why:** the surviving leg keeps its `linkGroupId`, so [TripGrouper.kt:75-79](../app/src/main/java/com/example/tripchecker/domain/grouping/TripGrouper.kt:75) makes it a 1-leg CUSTOM group that never auto-pairs again.
 - **Fix:** in one transaction, after the delete, clear `linkGroupId` on the remaining members if fewer than 2 are left.
 
-### - [ ] P1-13 · Parser: unreadable departure time silently becomes 00:00 and is **not** flagged for review
+### - [x] P1-13 · Parser: unreadable departure time silently becomes 00:00 and is **not** flagged for review
 - **Where:** [IrctcErsParser.kt:153-156](../app/src/main/java/com/example/tripchecker/extraction/parser/IrctcErsParser.kt:153). The warning is generated but `warnings` is never used anywhere.
 - **Fix:**
   - Add a `DEPARTURE_TIME` field to `missingFields` and treat it as required for auto-save, or set `needsReview` when this warning fires.
   - Persist the warnings, or at least surface them in the Needs review row.
 - **Test:** the fixture without a `Departure*` value → `needsReview == true`.
 
-### - [ ] P1-14 · Parser: the first passenger is lost if OCR puts the `# Name Age …` header on the same row or drops it
+### - [x] P1-14 · Parser: the first passenger is lost if OCR puts the `# Name Age …` header on the same row or drops it
 - **Where:** [IrctcErsParser.kt:331](../app/src/main/java/com/example/tripchecker/extraction/parser/IrctcErsParser.kt:331). It skips by index (`headerIdx + 2`).
 - **Fix:** start at `headerIdx + 1` and skip rows that match `^\s*#|Name\s+Age`.
 - **Test:** a fixture where the header row is missing → the passenger is still parsed.
 
-### - [ ] P1-15 · Edit: picking only a departure date silently sets 09:00 and bypasses validation
+### - [x] P1-15 · Edit: picking only a departure date silently sets 09:00 and bypasses validation
 - **Where:** [EditTicketScreen.kt:245-250](../app/src/main/java/com/example/tripchecker/ui/edit/EditTicketScreen.kt:245).
 - **Fix:** don't default the time. Leave it `null` so the required-field check flags it, or open the time picker right after the date. Move the decision into the VM so it can be unit-tested.
 
-### - [ ] P1-16 · Sharing into the already-open app doesn't navigate to Import
+### - [x] P1-16 · Sharing into the already-open app doesn't navigate to Import
 - **Where:** [MainActivity.kt:35-39](../app/src/main/java/com/example/tripchecker/MainActivity.kt:35). `onNewIntent` enqueues but never navigates (spec §3.5 / M5.1).
 - **Fix:**
   - Expose a one-shot event, e.g. `MutableSharedFlow<Unit>` collected in `AppNavHost`, and call `navigate(Import) { launchSingleTop = true }`.
   - Use `launchSingleTop` for every `navigate(Import)` ([AppNavHost.kt:41](../app/src/main/java/com/example/tripchecker/ui/navigation/AppNavHost.kt:41)) so a double tap doesn't push two Import screens.
 - **Also guard:** when the task is relaunched from Recents, Android re-delivers the original SEND intent with `FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY` and `savedInstanceState == null` ([MainActivity.kt:20](../app/src/main/java/com/example/tripchecker/MainActivity.kt:20)). That re-imports and shows "Already imported" or "Permission denial". Skip intents that carry this flag.
 
-### - [ ] P1-17 · Home "Go to ticket" fails silently
+### - [x] P1-17 · Home "Go to ticket" fails silently
 - **Where:** [HomeScreen.kt:61-63](../app/src/main/java/com/example/tripchecker/ui/home/HomeScreen.kt:61). The `OpenPdfResult` is ignored, so with no PDF app or a missing file nothing happens.
 - **Fix:** add a `SnackbarHost` to Home and reuse the TripDetail handling ("No PDF app found" + **Share**, "PDF file missing"). Extract it into one shared helper.
 

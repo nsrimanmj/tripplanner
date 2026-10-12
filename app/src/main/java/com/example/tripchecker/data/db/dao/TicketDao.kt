@@ -35,6 +35,9 @@ interface TicketDao {
     @Query("SELECT rawText FROM tickets WHERE id = :id")
     suspend fun getRawText(id: String): String?
 
+    @Query("SELECT pdfFileName FROM tickets WHERE pdfFileName IS NOT NULL")
+    suspend fun getAllPdfFileNames(): List<String>
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertTicket(ticket: TicketEntity)
 

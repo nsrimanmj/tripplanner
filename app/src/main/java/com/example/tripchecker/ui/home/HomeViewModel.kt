@@ -4,13 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.tripchecker.data.repo.TicketRepository
 import com.example.tripchecker.domain.grouping.TripGrouper
+import com.example.tripchecker.domain.journeyNowTicker
 import com.example.tripchecker.domain.model.JourneyGroup
 import com.example.tripchecker.domain.model.Ticket
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import java.time.Clock
 
@@ -43,14 +42,7 @@ class HomeViewModel(
     private val repository: TicketRepository,
     private val clock: Clock,
 ) : ViewModel() {
-    private val ticker =
-        flow {
-            emit(clock.instant())
-            while (true) {
-                delay(60_000)
-                emit(clock.instant())
-            }
-        }
+    private val ticker = journeyNowTicker(clock)
 
     val uiState: StateFlow<HomeUiState> =
         combine(repository.observeTickets(), ticker) { tickets, now ->

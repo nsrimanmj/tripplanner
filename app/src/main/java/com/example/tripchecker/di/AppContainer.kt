@@ -51,10 +51,11 @@ class AppContainer(
     val observeJourneysUseCase: ObserveJourneysUseCase =
         ObserveJourneysUseCase(ticketRepository, clock)
 
-    private val textExtractor =
+    private val textExtractor by lazy {
         CompositeTextExtractor(PdfBoxTextExtractor(), OcrTextExtractor())
+    }
 
-    val ticketImporter: TicketImporter =
+    val ticketImporter: TicketImporter by lazy {
         TicketImporter(
             repository = ticketRepository,
             fileStore = ticketFileStore,
@@ -62,6 +63,7 @@ class AppContainer(
             parsers = listOf(ticketParser),
             clock = clock,
         )
+    }
 
     private val _openImportEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val openImportEvents: SharedFlow<Unit> = _openImportEvents.asSharedFlow()
@@ -75,12 +77,13 @@ class AppContainer(
                 },
         )
 
-    val importManager: ImportManager =
+    val importManager: ImportManager by lazy {
         ImportManager(
             fileStore = ticketFileStore,
             importer = ticketImporter,
             scope = appScope,
         )
+    }
 
     val viewModelFactory: ViewModelProvider.Factory = createViewModelFactory(this)
 

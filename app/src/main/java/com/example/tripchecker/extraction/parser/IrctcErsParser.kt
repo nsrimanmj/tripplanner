@@ -151,10 +151,11 @@ class IrctcErsParser : TicketParser {
             }
         }
         if (startDate != null) {
-            warnings.add("Departure time missing; used start of start date")
-            return ZonedDateTime.of(startDate, LocalTime.MIDNIGHT, IrctcDates.IST).toInstant()
+            warnings.add("Departure time missing")
+            missing.add(TicketField.DEPARTURE_DATE)
+        } else {
+            missing.add(TicketField.DEPARTURE_DATE)
         }
-        missing.add(TicketField.DEPARTURE_DATE)
         return null
     }
 
@@ -327,10 +328,11 @@ class IrctcErsParser : TicketParser {
                 """^\s*(\d{1,2})\s*[.)]?\s+(.+?)\s+(\d{1,3})\s+(M|F|T|MALE|FEMALE|TRANSGENDER)\s+(.+)$""",
                 RegexOption.IGNORE_CASE,
             )
+        val headerRowRx = Regex("""#\s*Name\s+Age""", RegexOption.IGNORE_CASE)
         val result = mutableListOf<ParsedPassengerRow>()
-        for (i in (headerIdx + 2)..<last) {
+        for (i in (headerIdx + 1)..<last) {
             val line = rows[i].trim()
-            if (line.isEmpty() || line.startsWith("#")) continue
+            if (line.isEmpty() || headerRowRx.containsMatchIn(line)) continue
             val m = rowRx.matchEntire(line) ?: run {
                 warnings.add("Skipped passenger row: $line")
                 continue

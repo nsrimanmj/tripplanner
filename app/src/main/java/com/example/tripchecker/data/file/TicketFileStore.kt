@@ -23,6 +23,15 @@ class TicketFileStore(
         StagingCleanup.clean(stagingDir, ticketsDir)
     }
 
+    /** Deletes ticket PDFs on disk that are not referenced by any DB row. */
+    fun deleteUnreferencedTicketPdfs(referencedNames: Set<String>) {
+        ticketsDir.listFiles()?.forEach { file ->
+            if (file.isFile && file.name.endsWith(".pdf", ignoreCase = true) && file.name !in referencedNames) {
+                file.delete()
+            }
+        }
+    }
+
     override suspend fun importFromUri(uriString: String): StagedFile =
         withContext(Dispatchers.IO) {
             val uri = Uri.parse(uriString)

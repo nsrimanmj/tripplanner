@@ -73,4 +73,6 @@ class OfflineTicketRepository(
         dao.setLinkGroup(ids, groupId = null, autoPairDisabled = false, updatedAt = clock.instant())
     }
 
+    override suspend fun referencedPdfFileNames(): Set<String> =
+        dao.getAllPdfFileNames().filterNotNull().toSet()
 }

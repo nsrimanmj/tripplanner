@@ -741,3 +741,4 @@ Put real PDFs in `samples/` (gitignored) and push them with `adb push samples/ /
 - 2026-10-12 12:00 · M5.5–M5.8 · Trip detail, edit ticket, TicketActions, HomeUiMapper/LinkReturnCandidates tests · HomeUiMapperTest, LinkReturnCandidatesTest, EditTicketMapperTest, ImportManagerTest
 - 2026-10-12 12:15 · M6.5 · Compose previews, KDoc pass, verify.ps1, lint.xml, TripDetail snackbar fix · —
 - 2026-10-12 18:50 · code review · P0 import/lint fixes; gate green (`assembleDebug testDebugUnitTest lintDebug`) · ImportManagerTest, TicketImporterTest, TripGrouperTest, EditTicketMapperTest
+- 2026-10-12 19:00 · code review · P1-7–P1-17 (ticker, orphan PDF reconcile, parser/edit/home PDF UX) · IrctcErsParserTest, JourneyRefresh

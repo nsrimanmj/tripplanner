@@ -245,7 +245,6 @@ fun EditTicketContent(
                                     DateTarget.Departure ->
                                         form.copy(
                                             departureDate = date,
-                                            departureTime = form.departureTime ?: LocalTime.of(9, 0),
                                             startDate = form.startDate ?: date,
                                         )
                                     DateTarget.Arrival -> form.copy(arrivalDate = date)

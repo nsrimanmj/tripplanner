@@ -5,8 +5,9 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.tripchecker.data.repo.TicketRepository
 import com.example.tripchecker.di.AppContainer
-import com.example.tripchecker.domain.ObserveJourneysUseCase
 import com.example.tripchecker.domain.grouping.LinkReturnCandidates
+import com.example.tripchecker.domain.grouping.TripGrouper
+import com.example.tripchecker.domain.journeyNowTicker
 import com.example.tripchecker.domain.model.JourneyGroup
 import com.example.tripchecker.domain.model.JourneyKind
 import com.example.tripchecker.domain.model.Ticket
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.Clock
 import java.util.UUID
 
 data class TripDetailUiState(
@@ -33,23 +35,24 @@ sealed class TripDetailEvent {
 /** ViewModel for trip detail: group actions and leg management. */
 class TripDetailViewModel(
     private val anchorTicketId: String,
-    observeJourneys: ObserveJourneysUseCase,
     private val repository: TicketRepository,
+    private val clock: Clock,
 ) : ViewModel() {
+    private val ticker = journeyNowTicker(clock)
+
     val uiState: StateFlow<TripDetailUiState> =
-        combine(
-            observeJourneys.observe(),
-            repository.observeTicket(anchorTicketId),
-        ) { groups, ticket ->
+        combine(repository.observeTickets(), ticker) { tickets, now ->
+            val groups = TripGrouper.group(tickets, now)
             val group = groups.firstOrNull { g -> g.legs.any { it.id == anchorTicketId } }
-            val anchorLeg = group?.legs?.find { it.id == anchorTicketId } ?: ticket
+            val anchorLeg = group?.legs?.find { it.id == anchorTicketId }
+            val anchor = anchorLeg ?: tickets.find { it.id == anchorTicketId }
             val candidates =
-                if (group?.kind == JourneyKind.ONE_WAY && anchorLeg != null) {
-                    LinkReturnCandidates.find(anchorLeg, groups)
+                if (group?.kind == JourneyKind.ONE_WAY && anchor != null) {
+                    LinkReturnCandidates.find(anchor, groups)
                 } else {
                     emptyList()
                 }
-            TripDetailUiState(group = group, anchor = ticket, linkCandidates = candidates)
+            TripDetailUiState(group = group, anchor = anchor, linkCandidates = candidates)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TripDetailUiState())
 
     private val _events = Channel<TripDetailEvent>(Channel.BUFFERED)
@@ -104,8 +107,8 @@ class TripDetailViewModel(
             if (modelClass.isAssignableFrom(TripDetailViewModel::class.java)) {
                 return TripDetailViewModel(
                     anchorTicketId,
-                    container.observeJourneysUseCase,
                     container.ticketRepository,
+                    container.clock,
                 ) as T
             }
             throw IllegalArgumentException("Unknown ViewModel $modelClass")

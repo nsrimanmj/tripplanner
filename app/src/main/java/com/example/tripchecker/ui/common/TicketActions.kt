@@ -41,8 +41,8 @@ object TicketActions {
         }
     }
 
-    fun sharePdf(context: Context, fileStore: TicketFileStore, ticket: Ticket): Boolean {
-        val name = ticket.pdfFileName ?: return false
+    fun sharePdfByFileName(context: Context, fileStore: TicketFileStore, pdfFileName: String?): Boolean {
+        val name = pdfFileName ?: return false
         val file = fileStore.fileFor(name)
         if (!file.exists()) return false
         val uri =
@@ -59,6 +59,9 @@ object TicketActions {
         context.startActivity(Intent.createChooser(intent, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         return true
     }
+
+    fun sharePdf(context: Context, fileStore: TicketFileStore, ticket: Ticket): Boolean =
+        sharePdfByFileName(context, fileStore, ticket.pdfFileName)
 }
 
 sealed class OpenPdfResult {

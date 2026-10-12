@@ -16,4 +16,5 @@ interface TicketRepository {
     suspend fun link(ids: List<String>, groupId: String)
     suspend fun unlink(ids: List<String>)
     suspend fun resetPairing(ids: List<String>)
+    suspend fun referencedPdfFileNames(): Set<String>
 }

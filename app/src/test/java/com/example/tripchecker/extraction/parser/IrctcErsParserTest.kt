@@ -63,6 +63,44 @@ class IrctcErsParserTest {
         assertFalse(parser.canParse("hello world"))
     }
 
+    @Test
+    fun `missing departure time flags needs review field`() {
+        val text =
+            """
+            Electronic Reservation Slip
+            PNR 1234567890
+            Train No./Name 17001 / TEST EXPRESS
+            From SNSI To BMT
+            Journey Date 03-Aug-2026
+            Class SL Quota GN
+            Passenger Details
+            # Name Age Gender Booking Status Current Status
+            1. TEST 30 M CNF/B1/1/LOWER CNF/B1/1/LOWER
+            """.trimIndent()
+        val p = parser.parse(text)
+        assertTrue(p.missingFields.contains(TicketField.DEPARTURE_DATE))
+        assertNull(p.departureAt)
+    }
+
+    @Test
+    fun `passenger row immediately after header is parsed`() {
+        val text =
+            """
+            Electronic Reservation Slip
+            PNR 1234567890
+            Train No./Name 17001 / TEST EXPRESS
+            From SNSI To BMT
+            Journey Date 03-Aug-2026
+            Departure* 17:00 03-Aug-2026
+            Class SL Quota GN
+            Passenger Details
+            1. FIRST PASSENGER 30 M CNF/B1/1/LOWER CNF/B1/1/LOWER
+            """.trimIndent()
+        val p = parser.parse(text)
+        assertEquals(1, p.passengers.size)
+        assertEquals("FIRST PASSENGER", p.passengers[0].name)
+    }
+
     private fun assertGolden(p: ParsedTicket) {
         assertEquals("8751652729", p.pnr)
         assertEquals("17001", p.trainNumber)

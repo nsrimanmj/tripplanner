@@ -189,5 +189,6 @@ class TicketImporterTest {
         override suspend fun link(ids: List<String>, groupId: String) = Unit
         override suspend fun unlink(ids: List<String>) = Unit
         override suspend fun resetPairing(ids: List<String>) = Unit
+        override suspend fun referencedPdfFileNames(): Set<String> = emptySet()
     }
 }
