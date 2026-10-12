@@ -3,6 +3,8 @@
 Guidance for AI coding agents (Cursor, Claude Code, etc.) working in this repo.
 **The task list and full specs are in [`docs/PLAN.md`](docs/PLAN.md). Read it before writing code.**
 
+> ⚠️ **Review fixes come first.** A code review of the M0–M6 work found crashes, data-loss bugs and a failing test suite. Work through every unchecked `[ ]` item in [`docs/CODE_REVIEW_README.md`](docs/CODE_REVIEW_README.md), in its §8 order, **before** taking any new task from `docs/PLAN.md` §4. Follow the same loop below (test-first, verify, log) for each one.
+
 ## What we're building
 
 Trip Checker is an **offline** Android app for one person who travels by Indian Railways about every 2 weeks.
@@ -18,7 +20,7 @@ Owner decisions are final and listed in `docs/PLAN.md` §1. Don't revisit them.
 
 The owner wants you to work **continuously and autonomously** through the plan. Do not stop to ask questions.
 
-1. **Resume point:** open `docs/PLAN.md`. Find the first unchecked `[ ]` task in §4, and check §9 (Progress log) and §8 (Blockers).
+1. **Resume point:** first open `docs/CODE_REVIEW_README.md` and take its first unchecked `[ ]` item. Only when every item there is ticked, open `docs/PLAN.md` and find the first unchecked `[ ]` task in §4. Either way, check PLAN §9 (Progress log) and §8 (Blockers).
 2. **Implement the task completely.** No stubs, no `TODO()`, no "left as an exercise". Follow the spec in §3 and §5 of PLAN.md.
 3. **Test it.** Write or extend unit tests for every pure-Kotlin piece. Parser and grouper work is **test-first**.
 4. **Verify:**
