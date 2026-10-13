@@ -113,3 +113,16 @@ On this Windows machine, Gradle needs a short TEMP (`TEMP=TMP=E:\androidApps\.gt
 4. **Locale filtering** (`androidResources.localeFilters += "en"`): the app is English-only; this would trim library translations from `resources.arsc` (≤ 0.4 MB), but date-picker and framework strings would stop following the device language. Low gain.
 5. **Compressed native libraries** (`packaging.jniLibs.useLegacyPackaging = true`): smaller APK file, but the libraries get extracted on install (larger on-disk footprint, slower install). Not recommended.
 6. Dropping x86/x86_64 or armeabi-v7a from the universal APK would remove support for those devices. Not done; the per-ABI APKs already give the size benefit.
+
+## Release signing
+
+`app/build.gradle.kts` signs the `release` build type when credentials are available, so `assembleRelease` and `bundleRelease` produce installable, signed output (`app-<abi|universal>-release.apk`, no `-unsigned` suffix; AAB `app-release.aab`).
+
+Credentials are read in this order (nothing is ever printed or committed):
+
+1. `keystore.properties` at the repo root (git-ignored). Keys: `storeFile` (absolute, or relative to the repo root), `storePassword`, `keyAlias`, `keyPassword`. Template: `keystore.properties.example`.
+2. Environment variables `TRIPCHECKER_STORE_FILE`, `TRIPCHECKER_STORE_PASSWORD`, `TRIPCHECKER_KEY_ALIAS`, `TRIPCHECKER_KEY_PASSWORD`.
+
+If any value is missing or the store file doesn't exist, release stays unsigned and Gradle logs one warning. Debug always uses the default debug keystore.
+
+Verify: `apksigner verify --verbose --print-certs app/build/outputs/apk/release/app-universal-release.apk` (expect v2/v3 verified and a certificate that is not `CN=Android Debug`). Keep the keystore and its passwords backed up: updates must be signed with the same key.

@@ -1,9 +1,35 @@
+import java.io.StringReader
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.room)
+}
+
+// Release signing credentials: keystore.properties at the repo root (git-ignored; keys
+// storeFile, storePassword, keyAlias, keyPassword), else the TRIPCHECKER_STORE_FILE,
+// TRIPCHECKER_STORE_PASSWORD, TRIPCHECKER_KEY_ALIAS and TRIPCHECKER_KEY_PASSWORD environment
+// variables. If neither is complete, release stays unsigned. See docs/RELEASE_OPTIMIZATION.md.
+val signingProps = Properties().apply {
+    providers.fileContents(rootProject.layout.projectDirectory.file("keystore.properties"))
+        .asText.orNull?.let { load(StringReader(it)) }
+}
+
+fun signingValue(propKey: String, envKey: String): String? =
+    (signingProps.getProperty(propKey) ?: providers.environmentVariable(envKey).orNull)
+        ?.trim()?.takeIf { it.isNotEmpty() }
+
+val releaseStoreFile = signingValue("storeFile", "TRIPCHECKER_STORE_FILE")?.let { rootProject.file(it) }
+val releaseStorePassword = signingValue("storePassword", "TRIPCHECKER_STORE_PASSWORD")
+val releaseKeyAlias = signingValue("keyAlias", "TRIPCHECKER_KEY_ALIAS")
+val releaseKeyPassword = signingValue("keyPassword", "TRIPCHECKER_KEY_PASSWORD")
+val hasReleaseSigning = releaseStoreFile != null && releaseStoreFile.isFile &&
+    releaseStorePassword != null && releaseKeyAlias != null && releaseKeyPassword != null
+if (!hasReleaseSigning) {
+    logger.warn("Release signing is not configured (keystore.properties or TRIPCHECKER_* env vars missing/incomplete); release builds will be unsigned.")
 }
 
 android {
@@ -22,8 +48,20 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = releaseStoreFile
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (hasReleaseSigning) signingConfig = signingConfigs.getByName("release")
             optimization {
                 // R8 code + resource optimization (AGP 9.3+ DSL; includes the
                 // proguard-android-optimize defaults). Keep rules: src/main/keepRules.
