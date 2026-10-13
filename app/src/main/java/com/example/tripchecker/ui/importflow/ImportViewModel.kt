@@ -1,52 +1,39 @@
 package com.example.tripchecker.ui.importflow
 
 import androidx.lifecycle.ViewModel
-import com.example.tripchecker.importer.ImportItem
-import com.example.tripchecker.importer.ImportItemState
+import androidx.lifecycle.viewModelScope
+import com.example.tripchecker.data.repo.TicketRepository
+import com.example.tripchecker.domain.ObserveJourneysUseCase
 import com.example.tripchecker.importer.ImportManager
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
-import androidx.lifecycle.viewModelScope
 
+/** UI state of the Import screen: per-file rows plus the aggregate summary. */
 data class ImportUiState(
-    val items: List<ImportItem> = emptyList(),
-    val summary: String = "",
+    val rows: List<ImportRowModel> = emptyList(),
+    val summary: ImportSummary = ImportSummary(),
 )
 
+/** Combines the import queue with stored tickets and journeys to build [ImportUiState]. */
 class ImportViewModel(
     private val importManager: ImportManager,
+    ticketRepository: TicketRepository,
+    observeJourneys: ObserveJourneysUseCase,
 ) : ViewModel() {
     val uiState: StateFlow<ImportUiState> =
-        importManager.items
-            .map { items -> ImportUiState(items = items, summary = summarize(items)) }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ImportUiState())
+        combine(
+            importManager.items,
+            ticketRepository.observeTickets(),
+            observeJourneys.observeRefreshing(),
+        ) { items, tickets, journeys ->
+            ImportUiState(
+                rows = ImportRowText.rows(items, tickets, journeys),
+                summary = ImportRowText.summarize(items),
+            )
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ImportUiState())
 
+    /** Drops finished items from the queue; queued and reading items keep going. */
     fun clearFinished() = importManager.clearFinished()
-
-    private fun summarize(items: List<ImportItem>): String {
-        var saved = 0
-        var updated = 0
-        var duplicate = 0
-        var review = 0
-        var failed = 0
-        items.forEach { item ->
-            when (item.state) {
-                is ImportItemState.Saved -> saved++
-                is ImportItemState.Updated -> updated++
-                is ImportItemState.Duplicate -> duplicate++
-                is ImportItemState.NeedsReview -> review++
-                is ImportItemState.Failed -> failed++
-                else -> Unit
-            }
-        }
-        return buildList {
-            if (saved > 0) add("$saved saved")
-            if (updated > 0) add("$updated updated")
-            if (duplicate > 0) add("$duplicate duplicate")
-            if (review > 0) add("$review needs review")
-            if (failed > 0) add("$failed failed")
-        }.joinToString(" · ")
-    }
 }

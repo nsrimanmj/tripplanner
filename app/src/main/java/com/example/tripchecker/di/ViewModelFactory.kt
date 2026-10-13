@@ -14,6 +14,6 @@ fun createViewModelFactory(container: AppContainer): ViewModelProvider.Factory =
             HomeViewModel(container.ticketRepository, container.clock)
         }
         initializer {
-            ImportViewModel(container.importManager)
+            ImportViewModel(container.importManager, container.ticketRepository, container.observeJourneysUseCase)
         }
     }

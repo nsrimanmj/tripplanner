@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Empty-state illustration recreated from Empty_state.html (220x200 CSS box), scaled 0.94 and centred in 240x180dp. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="240dp"
+    android:height="180dp"
+    android:viewportWidth="240"
+    android:viewportHeight="180">
+    <group
+        android:scaleX="0.94"
+        android:scaleY="0.94"
+        android:translateX="13"
+        android:translateY="1">
+
+        <!-- Large soft blob: 170 square, radius 56, rotated 14 degrees -->
+        <group
+            android:rotation="14"
+            android:pivotX="115"
+            android:pivotY="95">
+            <path
+                android:fillColor="#DEE0FF"
+                android:pathData="M86,10H144A56,56 0 0 1 200,66V124A56,56 0 0 1 144,180H86A56,56 0 0 1 30,124V66A56,56 0 0 1 86,10Z" />
+        </group>
+
+        <!-- Small pink circle, top-left -->
+        <path
+            android:fillColor="#FFD7F1"
+            android:pathData="M4,52A24,24 0 1 0 52,52A24,24 0 1 0 4,52Z" />
+
+        <!-- Ticket card rotated -6 degrees -->
+        <group
+            android:rotation="-6"
+            android:pivotX="112"
+            android:pivotY="114">
+
+            <!-- Soft drop shadow, offset 6 down -->
+            <path
+                android:fillColor="#1F000000"
+                android:pathData="M42,68H182A20,20 0 0 1 202,88V152A20,20 0 0 1 182,172H42A20,20 0 0 1 22,152V88A20,20 0 0 1 42,68Z" />
+
+            <!-- Card body: 180 x 104, radius 20 -->
+            <path
+                android:fillColor="#FFFFFF"
+                android:pathData="M42,62H182A20,20 0 0 1 202,82V146A20,20 0 0 1 182,166H42A20,20 0 0 1 22,146V82A20,20 0 0 1 42,62Z" />
+
+            <!-- Train glyph, 34dp, centred in the left 64dp column -->
+            <group
+                android:translateX="37"
+                android:translateY="97"
+                android:scaleX="1.4166667"
+                android:scaleY="1.4166667">
+                <path
+                    android:fillColor="#4355B9"
+                    android:pathData="M4 15.5C4 17.43 5.57 19 7.5 19L6 20.5v.5h12v-.5L16.5 19c1.93 0 3.5-1.57 3.5-3.5V5c0-3.5-3.58-4-8-4s-8 .5-8 4v10.5zm8 1.5c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm6-7H6V5h12v5z" />
+            </group>
+
+            <!-- Dashed vertical divider at x 86..88 (6 on, 4 off) -->
+            <path
+                android:fillColor="#C6C5D0"
+                android:pathData="M86,74H88V80H86Z M86,84H88V90H86Z M86,94H88V100H86Z M86,104H88V110H86Z M86,114H88V120H86Z M86,124H88V130H86Z M86,134H88V140H86Z M86,144H88V150H86Z" />
+
+            <!-- Indigo title bar (70% of content width) -->
+            <path
+                android:fillColor="#4355B9"
+                android:pathData="M110,82H155.4A6,6 0 0 1 155.4,94H110A6,6 0 0 1 110,82Z" />
+
+            <!-- Grey bar (90%) -->
+            <path
+                android:fillColor="#E4E1E9"
+                android:pathData="M108,104H173.8A4,4 0 0 1 173.8,112H108A4,4 0 0 1 108,104Z" />
+
+            <!-- Grey bar (55%) -->
+            <path
+                android:fillColor="#E4E1E9"
+                android:pathData="M108,122H145.1A4,4 0 0 1 145.1,130H108A4,4 0 0 1 108,122Z" />
+        </group>
+    </group>
+</vector>

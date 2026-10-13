@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.tripchecker.data.repo.TicketRepository
 import com.example.tripchecker.di.AppContainer
-import com.example.tripchecker.domain.grouping.LinkReturnCandidates
 import com.example.tripchecker.domain.grouping.TripGrouper
 import com.example.tripchecker.domain.journeyNowTicker
 import com.example.tripchecker.domain.model.JourneyGroup
@@ -21,10 +20,16 @@ import kotlinx.coroutines.launch
 import java.time.Clock
 import java.util.UUID
 
+/** UI state for trip detail; [group] is null while loading or when the ticket no longer exists. */
 data class TripDetailUiState(
     val group: JourneyGroup? = null,
     val anchor: Ticket? = null,
-    val linkCandidates: List<Ticket> = emptyList(),
+    val header: TripHeaderUi? = null,
+    val menu: TripMenuUi = TripMenuUi(unlink = false, linkReturn = false, resetPairing = false),
+    val legs: List<LegUi> = emptyList(),
+    val stays: List<String?> = emptyList(),
+    val pairing: PairingCardUi? = null,
+    val linkSheet: LinkSheetUi = LinkSheetUi("", emptyList()),
 )
 
 sealed class TripDetailEvent {
@@ -46,13 +51,25 @@ class TripDetailViewModel(
             val group = groups.firstOrNull { g -> g.legs.any { it.id == anchorTicketId } }
             val anchorLeg = group?.legs?.find { it.id == anchorTicketId }
             val anchor = anchorLeg ?: tickets.find { it.id == anchorTicketId }
-            val candidates =
-                if (group?.kind == JourneyKind.ONE_WAY && anchor != null) {
-                    LinkReturnCandidates.find(anchor, groups)
-                } else {
-                    emptyList()
-                }
-            TripDetailUiState(group = group, anchor = anchor, linkCandidates = candidates)
+            if (group == null) {
+                TripDetailUiState(anchor = anchor)
+            } else {
+                TripDetailUiState(
+                    group = group,
+                    anchor = anchor,
+                    header = TripDetailUiMapper.header(group),
+                    menu = TripDetailUiMapper.menu(group),
+                    legs = TripDetailUiMapper.legs(group),
+                    stays = TripDetailUiMapper.stays(group),
+                    pairing = TripDetailUiMapper.pairingCard(group),
+                    linkSheet =
+                        if (group.kind == JourneyKind.ONE_WAY && anchor != null) {
+                            TripDetailUiMapper.linkSheet(anchor, groups)
+                        } else {
+                            LinkSheetUi("", emptyList())
+                        },
+                )
+            }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TripDetailUiState())
 
     private val _events = Channel<TripDetailEvent>(Channel.BUFFERED)

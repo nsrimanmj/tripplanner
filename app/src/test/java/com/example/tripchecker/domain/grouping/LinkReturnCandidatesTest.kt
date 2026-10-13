@@ -27,6 +27,41 @@ class LinkReturnCandidatesTest {
         assertEquals("r", result.first().id)
     }
 
+    @Test
+    fun `excludes cancelled and needs-review tickets and the anchor`() {
+        val anchor = ticket("a", "SNSI", "BMT", t(2026, 8, 3))
+        val cancelled = ticket("c", "BMT", "SNSI", t(2026, 8, 10)).copy(isCancelled = true)
+        val review = ticket("v", "BMT", "SNSI", t(2026, 8, 11)).copy(needsReview = true)
+        val ok = ticket("k", "BMT", "SNSI", t(2026, 8, 12))
+        val groups = listOf(anchor, cancelled, review, ok).map { oneWay(it.id, it) }
+        assertEquals(listOf("k"), LinkReturnCandidates.find(anchor, groups).map { it.id })
+    }
+
+    @Test
+    fun `ignores tickets that are part of round trips`() {
+        val anchor = ticket("a", "SNSI", "BMT", t(2026, 8, 3))
+        val paired = ticket("p", "BMT", "SNSI", t(2026, 8, 10))
+        val groups =
+            listOf(
+                oneWay("a", anchor),
+                JourneyGroup("rt", JourneyKind.ROUND_TRIP, listOf(paired), false, JourneyStatus.UPCOMING),
+            )
+        assertEquals(emptyList<String>(), LinkReturnCandidates.find(anchor, groups).map { it.id })
+    }
+
+    @Test
+    fun `likely returns come first then the rest, each by closeness in time`() {
+        val anchor = ticket("a", "SNSI", "BMT", t(2026, 8, 3))
+        val likelyFar = ticket("lf", "SC", "SNSI", t(2026, 8, 20))
+        val likelyNear = ticket("ln", "BMT", "SNSI", t(2026, 8, 10))
+        val otherNear = ticket("on", "SNSI", "SC", t(2026, 8, 4))
+        val otherFar = ticket("of", "SNSI", "SC", t(2026, 9, 4))
+        val groups = listOf(anchor, otherFar, likelyFar, otherNear, likelyNear).map { oneWay(it.id, it) }
+        val ranked = LinkReturnCandidates.findRanked(anchor, groups)
+        assertEquals(listOf("ln", "lf", "on", "of"), ranked.map { it.ticket.id })
+        assertEquals(listOf(true, true, false, false), ranked.map { it.likelyReturn })
+    }
+
     private fun oneWay(key: String, leg: Ticket) =
         JourneyGroup(key, JourneyKind.ONE_WAY, listOf(leg), isManual = false, JourneyStatus.UPCOMING)
 

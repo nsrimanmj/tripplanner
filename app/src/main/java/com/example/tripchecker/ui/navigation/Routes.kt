@@ -9,7 +9,8 @@ data object Home
 data object Import
 
 @Serializable
-data class TripDetail(val anchorTicketId: String)
+/** Trip detail for the group containing [anchorTicketId]; [openLinkSheet] opens the link-return sheet once on entry. */
+data class TripDetail(val anchorTicketId: String, val openLinkSheet: Boolean = false)
 
 @Serializable
 data class EditTicket(val ticketId: String?)

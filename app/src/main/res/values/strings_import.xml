@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="import_summary_progress">%1$d of %2$d</string>
+    <string name="import_summary_reading_one_at_a_time">Reading one at a time</string>
+    <string name="import_summary_all_done">All done</string>
+    <string name="import_summary_progress_description">Files processed</string>
+    <string name="import_chip_saved">%1$d saved</string>
+    <string name="import_chip_updated">%1$d updated</string>
+    <string name="import_chip_duplicate">%1$d duplicate</string>
+    <string name="import_chip_needs_review">%1$d needs review</string>
+    <string name="import_chip_failed">%1$d failed</string>
+    <string name="import_separator">%1$s · %2$s</string>
+    <string name="import_row_saved_paired">Saved · paired as round trip</string>
+    <string name="import_row_via_ocr">via OCR</string>
+    <string name="import_row_via_text">via text</string>
+    <string name="import_row_updated">Updated · latest status saved</string>
+    <string name="import_row_needs_review">Needs review · tap to finish</string>
+    <string name="import_footer_note">Importing continues if you leave this screen</string>
+</resources>

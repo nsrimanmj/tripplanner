@@ -17,6 +17,9 @@ object StationClusters {
             city("SHIRDI", listOf("SNSI", "KPG"))
         }
 
+    /** True when [code] is one of the clustered station codes (case-insensitive). */
+    fun isKnownCode(code: String?): Boolean = code != null && codeToCity.containsKey(code.uppercase())
+
     fun cityOf(code: String?): String {
         if (code.isNullOrBlank()) return code ?: ""
         return codeToCity[code.uppercase()] ?: code.uppercase()

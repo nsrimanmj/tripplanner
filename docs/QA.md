@@ -30,3 +30,10 @@ Place real ticket PDFs in `samples/` (gitignored). Optional: `adb push samples/ 
 - Share a `.txt` or image renamed as PDF → Import row shows **Failed** with “Not a PDF” (or “Empty file” for 0-byte).
 - Share a corrupt or encrypted PDF → **Needs review** or **Failed**, app does not crash.
 - Force-stop the app during import, reopen → no orphan files left under cache staging; import queue may reset but DB stays consistent.
+
+## Visual design (MD)
+
+14. **Visual check against `design/screens/*.png`:** Home (with hero, needs review, upcoming, past) in `Home.png`, the Add ticket menu in `Home — Add ticket menu.png`, the empty state in `Home — Empty state.png`, Import (mid-import) in `Import.png`, Trip detail (round trip, with the boarding-differs leg) in `Trip detail — Round trip.png`, the Link return sheet in `Link return sheet.png`, and Review ticket (with missing fields) in `Review Edit ticket.png`. Layout, colour roles and copy match the mockups.
+15. Switch the phone to **dark theme** — every screen above stays legible, with no hard-coded light colours.
+16. Set the system font size to the largest — no clipped text; station codes and seat numbers don't wrap.
+17. TalkBack — every icon-only button announces its label ("Copy PNR", "Share ticket PDF", "Trip options", …).

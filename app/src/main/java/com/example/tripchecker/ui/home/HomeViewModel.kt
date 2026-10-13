@@ -5,39 +5,13 @@ import androidx.lifecycle.viewModelScope
 import com.example.tripchecker.data.repo.TicketRepository
 import com.example.tripchecker.domain.grouping.TripGrouper
 import com.example.tripchecker.domain.journeyNowTicker
-import com.example.tripchecker.domain.model.JourneyGroup
-import com.example.tripchecker.domain.model.Ticket
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import java.time.Clock
 
-/** UI state for the home journey list. */
-data class HomeUiState(
-    val isLoading: Boolean = true,
-    val nextJourney: NextJourneyUi? = null,
-    val needsReview: List<Ticket> = emptyList(),
-    val upcoming: List<JourneyGroup> = emptyList(),
-    val pastByMonth: List<PastMonthGroup> = emptyList(),
-    val isEmpty: Boolean = false,
-)
-
-data class NextJourneyUi(
-    val ticketId: String,
-    val countdown: String,
-    val trainLine: String,
-    val route: String,
-    val departureTime: String,
-    val berthSummary: String,
-    val pdfFileName: String? = null,
-)
-
-data class PastMonthGroup(
-    val header: String,
-    val groups: List<JourneyGroup>,
-)
-
+/** Drives the home screen: groups tickets and maps them to [HomeUiState], re-evaluating "now" every minute. */
 class HomeViewModel(
     private val repository: TicketRepository,
     private val clock: Clock,

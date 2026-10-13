@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="common_go_to_ticket">Go to ticket</string>
+    <string name="common_share_ticket_pdf">Share ticket PDF</string>
+    <string name="common_edit_ticket">Edit ticket</string>
+    <string name="common_status_confirmed">Confirmed</string>
+    <string name="common_status_cnf">CNF</string>
+    <string name="common_status_rac">RAC</string>
+    <string name="common_status_waitlist">Waitlist</string>
+    <string name="common_status_cancelled">Cancelled</string>
+    <string name="common_status_unknown">Status unknown</string>
+</resources>
