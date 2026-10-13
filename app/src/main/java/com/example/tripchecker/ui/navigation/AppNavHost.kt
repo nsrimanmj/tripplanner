@@ -46,6 +46,7 @@ fun AppNavHost(
                     navController.navigate(Import) { launchSingleTop = true }
                 },
                 onAddManual = { navController.navigate(EditTicket(null)) },
+                onLinkReturn = { navController.navigate(TripDetail(it, openLinkSheet = true)) },
             )
         }
         composable<Import> {
@@ -66,6 +67,7 @@ fun AppNavHost(
                 fileStore = container.ticketFileStore,
                 onBack = { navController.popBackStack() },
                 onEdit = { navController.navigate(EditTicket(it)) },
+                openLinkSheet = route.openLinkSheet,
             )
         }
         composable<EditTicket> { entry ->

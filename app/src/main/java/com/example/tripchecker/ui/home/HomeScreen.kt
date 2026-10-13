@@ -1,57 +1,54 @@
 package com.example.tripchecker.ui.home
 
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ElevatedCard
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.tripchecker.R
-import com.example.tripchecker.domain.model.JourneyGroup
-import com.example.tripchecker.domain.model.JourneyKind
-import androidx.compose.ui.platform.LocalContext
 import com.example.tripchecker.data.file.TicketFileStore
-import com.example.tripchecker.ui.common.Formatters
 import com.example.tripchecker.ui.common.PdfOpenFeedback
+import com.example.tripchecker.ui.common.TicketActions
+import com.example.tripchecker.ui.home.components.AddTicketFab
+import com.example.tripchecker.ui.home.components.AddTicketMenu
+import com.example.tripchecker.ui.home.components.HomeEmptyState
+import com.example.tripchecker.ui.home.components.HomeTopBar
+import com.example.tripchecker.ui.theme.Dimens
+import kotlinx.coroutines.launch
 
+/** Stateful Home screen: collects [HomeViewModel] state and wires PDF open/share plumbing. */
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
     fileStore: TicketFileStore,
     onOpenTrip: (String) -> Unit,
     onEditTicket: (String) -> Unit,
-    onPdfsSelected: (List<android.net.Uri>) -> Unit,
+    onPdfsSelected: (List<Uri>) -> Unit,
     onAddManual: () -> Unit,
+    onLinkReturn: (String) -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -80,158 +77,88 @@ fun HomeScreen(
                 messages = pdfMessages,
             )
         },
+        onShareTicket = {
+            if (!TicketActions.sharePdfByFileName(context, fileStore, state.nextJourney?.pdfFileName)) {
+                scope.launch { snackbar.showSnackbar(pdfMessages.pdfMissing) }
+            }
+        },
+        onLinkReturn = onLinkReturn,
     )
 }
 
+/** Stateless Home content: large app bar, journey list or empty state, and the Add-ticket FAB menu. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeContent(
     state: HomeUiState,
-    snackbarHostState: SnackbarHostState = SnackbarHostState(),
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     onOpenTrip: (String) -> Unit,
     onEditTicket: (String) -> Unit,
-    onPdfsSelected: (List<android.net.Uri>) -> Unit,
+    onPdfsSelected: (List<Uri>) -> Unit,
     onAddManual: () -> Unit,
     onGoToTicket: () -> Unit = {},
+    onShareTicket: () -> Unit = {},
+    onLinkReturn: (String) -> Unit = {},
 ) {
-    var fabExpanded by remember { mutableStateOf(false) }
+    var menuOpen by rememberSaveable { mutableStateOf(false) }
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val listState = rememberLazyListState()
     val pdfLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
             if (uris.isNotEmpty()) onPdfsSelected(uris)
         }
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(title = { Text(stringResource(R.string.app_name)) })
-        },
-        floatingActionButton = {
-            Column {
-                DropdownMenu(expanded = fabExpanded, onDismissRequest = { fabExpanded = false }) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.import_pdfs)) },
-                        onClick = {
-                            fabExpanded = false
-                            pdfLauncher.launch(arrayOf("application/pdf"))
-                        },
+    val launchPicker = { pdfLauncher.launch(arrayOf("application/pdf")) }
+    val actions =
+        HomeActions(
+            onOpenTrip = onOpenTrip,
+            onEditTicket = onEditTicket,
+            onGoToTicket = onGoToTicket,
+            onShareTicket = onShareTicket,
+            onLinkReturn = onLinkReturn,
+        )
+    val showFab = !state.isEmpty
+    Box(Modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+            containerColor = MaterialTheme.colorScheme.surface,
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            topBar = { HomeTopBar(scrollBehavior) },
+            floatingActionButton = {
+                if (showFab && !menuOpen) {
+                    AddTicketFab(
+                        expanded = !(listState.canScrollBackward && listState.isScrollInProgress),
+                        onClick = { menuOpen = true },
                     )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.add_manually)) },
-                        onClick = {
-                            fabExpanded = false
-                            onAddManual()
-                        },
-                    )
                 }
-                FloatingActionButton(onClick = { fabExpanded = true }) {
-                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_ticket))
-                }
-            }
-        },
-    ) { padding ->
-        if (state.isEmpty) {
-            EmptyHomeState(
-                modifier = Modifier.padding(padding),
-                onImport = { pdfLauncher.launch(arrayOf("application/pdf")) },
-            )
-            return@Scaffold
-        }
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            state.nextJourney?.let { next ->
-                item {
-                    NextJourneyCard(next, onOpenTrip, onGoToTicket)
-                }
-            }
-            if (state.needsReview.isNotEmpty()) {
-                item { Text(stringResource(R.string.needs_review), style = MaterialTheme.typography.titleMedium) }
-                items(state.needsReview) { ticket ->
-                    ElevatedCard(
-                        modifier =
-                            Modifier.fillMaxWidth().clickable {
-                                onEditTicket(ticket.id)
-                            },
-                    ) {
-                        Text(
-                            modifier = Modifier.padding(16.dp),
-                            text = stringResource(R.string.needs_review_row, ticket.originalFileName ?: ticket.id),
-                        )
-                    }
-                }
-            }
-            if (state.upcoming.isNotEmpty()) {
-                item { Text(stringResource(R.string.upcoming), style = MaterialTheme.typography.titleMedium) }
-                items(state.upcoming) { group ->
-                    JourneyCard(group, onOpenTrip)
-                }
-            }
-            state.pastByMonth.forEach { month ->
-                item { Text(month.header, style = MaterialTheme.typography.titleMedium) }
-                items(month.groups) { group ->
-                    JourneyCard(group, onOpenTrip)
+            },
+        ) { padding ->
+            if (state.isEmpty) {
+                HomeEmptyState(
+                    onImport = launchPicker,
+                    onAddManually = onAddManual,
+                    modifier = Modifier.padding(padding),
+                )
+            } else {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    contentPadding = PaddingValues(start = Dimens.screenGutter, end = Dimens.screenGutter, bottom = 96.dp),
+                ) {
+                    homeSections(state, actions)
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun EmptyHomeState(modifier: Modifier = Modifier, onImport: () -> Unit) {
-    Column(
-        modifier = modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(stringResource(R.string.empty_home_message), style = MaterialTheme.typography.bodyLarge)
-        TextButton(onClick = onImport) {
-            Text(stringResource(R.string.import_pdfs))
-        }
-    }
-}
-
-@Composable
-private fun NextJourneyCard(
-    next: NextJourneyUi,
-    onOpenTrip: (String) -> Unit,
-    onGoToTicket: () -> Unit,
-) {
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth().clickable { onOpenTrip(next.ticketId) },
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(next.countdown, style = MaterialTheme.typography.labelLarge)
-            Text(next.trainLine, style = MaterialTheme.typography.titleMedium)
-            Text(next.route, style = MaterialTheme.typography.titleLarge)
-            Text(next.departureTime)
-            Text(next.berthSummary, style = MaterialTheme.typography.headlineSmall)
-            if (next.pdfFileName != null) {
-                TextButton(onClick = onGoToTicket) {
-                    Text(stringResource(R.string.go_to_ticket))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun JourneyCard(group: JourneyGroup, onOpenTrip: (String) -> Unit) {
-    val first = group.legs.first()
-    val label =
-        when (group.kind) {
-            JourneyKind.ROUND_TRIP -> stringResource(R.string.round_trip)
-            JourneyKind.ONE_WAY -> stringResource(R.string.one_way)
-            JourneyKind.CUSTOM -> stringResource(R.string.custom_trip)
-        }
-    ElevatedCard(
-        modifier = Modifier.fillMaxWidth().clickable { onOpenTrip(first.id) },
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Text(label, style = MaterialTheme.typography.labelMedium)
-            group.legs.forEach { leg ->
-                val dep = leg.departureAt?.let { Formatters.formatTime(it) } ?: "—"
-                Text("${leg.origin?.code} → ${leg.to?.code} · $dep · ${leg.trainNumber ?: ""}")
-            }
-        }
+        AddTicketMenu(
+            visible = menuOpen && showFab,
+            onDismiss = { menuOpen = false },
+            onImportPdfs = {
+                menuOpen = false
+                launchPicker()
+            },
+            onAddManually = {
+                menuOpen = false
+                onAddManual()
+            },
+        )
     }
 }

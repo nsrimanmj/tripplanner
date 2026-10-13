@@ -55,13 +55,14 @@ A new chat session (fresh context) resumes from the PLAN.md checkboxes and logs.
 | Gradle | 9.6.0 wrapper, configuration cache on, JDK 25 daemon toolchain |
 | SDK | compileSdk 37 (new DSL `compileSdk { version = release(37) }`), minSdk 28, targetSdk 37 |
 | Java target | 11 (`compileOptions`) |
-| Compose | BOM 2026.02.01, Material 3, the existing `TripcheckerTheme` (dynamic colour) |
+| Compose | BOM 2026.02.01, Material 3, `TripcheckerTheme` with the **indigo brand scheme** (seed `#4355B9`, light + dark; `dynamicColor` defaults to `false`). Tokens in `docs/PLAN.md` §3.10 |
 | R8 rules | `app/src/main/keepRules/rules.keep` (AGP 9 location; there is no `proguard-rules.pro`). Release has `optimization { enable = false }` |
 | Versions | all in `gradle/libs.versions.toml`. Add every new dependency there and reference it via `libs.*` |
 
 ## Tech stack
 
 - **UI:** Jetpack Compose, Material 3, single activity, **navigation-compose with type-safe `@Serializable` routes**.
+- **Visual design:** the mockups in `design/` (`design/screens/*.png`; the HTML file is the same screens with a dark toggle) are the source of truth for looks. Specs are in PLAN §3.9 (screens) and §3.10 (colours, type, shapes, components). Use only `MaterialTheme.colorScheme` roles in UI code (no hard-coded colours outside `ui/theme/Color.kt`), and use the system font (no bundled or downloadable fonts).
 - **State:** ViewModel + `StateFlow`, collected with `collectAsStateWithLifecycle()`.
 - **DI:** **manual**. `AppContainer` is created in `TripCheckerApp` (a custom `Application`). ViewModels are built with `viewModelFactory { initializer { … } }`. **No Hilt, Dagger or Koin.**
 - **Persistence:** Room (via KSP) with schema export to `app/schemas/`. PDFs are copied into `filesDir/tickets/<ticketId>.pdf`, and only the file name is stored.

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="edit_title_review">Review ticket</string>
+    <string name="edit_close">Close</string>
+    <string name="edit_save_ticket">Save ticket</string>
+    <string name="edit_discard_title">Discard changes?</string>
+    <string name="edit_discard_body">Your edits to this ticket have not been saved.</string>
+    <string name="edit_discard_confirm">Discard</string>
+    <string name="edit_discard_keep">Keep editing</string>
+
+    <plurals name="edit_banner_title">
+        <item quantity="one">%d required field missing</item>
+        <item quantity="other">%d required fields missing</item>
+    </plurals>
+    <string name="edit_missing_pnr">PNR</string>
+    <string name="edit_missing_train_number">Train number</string>
+    <string name="edit_missing_from">From station</string>
+    <string name="edit_missing_to">To station</string>
+    <string name="edit_missing_departure">Departure date and time</string>
+    <string name="edit_banner_source_ocr">From %1$s · read with OCR</string>
+    <string name="edit_banner_source_text">From %1$s · read from the text layer</string>
+    <string name="edit_banner_source_plain">From %1$s</string>
+    <string name="edit_open_pdf">Open PDF</string>
+
+    <string name="edit_section_ticket">Ticket</string>
+    <string name="edit_section_route">Route</string>
+    <string name="edit_section_schedule">Schedule</string>
+    <string name="edit_section_schedule_zone">IST</string>
+    <string name="edit_section_class_fare">Class and fare</string>
+    <string name="edit_section_passengers">Passengers</string>
+
+    <string name="edit_label_pnr">PNR *</string>
+    <string name="edit_hint_pnr">10-digit PNR</string>
+    <string name="edit_pnr_missing_pdf">Required · not found in the PDF</string>
+    <string name="edit_required">Required</string>
+    <string name="edit_label_train_no">Train no.</string>
+    <string name="edit_label_train_no_required">Train no. *</string>
+    <string name="edit_label_train_name">Train name</string>
+
+    <string name="edit_label_from">From *</string>
+    <string name="edit_label_boarding">Boarding</string>
+    <string name="edit_label_to">To *</string>
+    <string name="edit_label_station_name">Station name</string>
+    <string name="edit_hint_code">Code</string>
+    <string name="edit_hint_boarding_name">Same as From</string>
+    <string name="edit_boarding_supporting">Optional · only if you board at a different station</string>
+
+    <string name="edit_label_departure_date">Departure date *</string>
+    <string name="edit_label_time_required">Time *</string>
+    <string name="edit_label_arrival_date">Arrival date</string>
+    <string name="edit_label_time">Time</string>
+    <string name="edit_hint_select_date">Select date</string>
+    <string name="edit_hint_time">--:--</string>
+    <string name="edit_departure_supporting">Required for grouping into trips</string>
+    <string name="edit_pick_date_action">Pick a date</string>
+    <string name="edit_pick_time_action">Pick a time</string>
+
+    <string name="edit_label_class">Class</string>
+    <string name="edit_label_quota">Quota</string>
+    <string name="edit_label_distance">Distance (km)</string>
+    <string name="edit_label_fare">Total fare (₹)</string>
+
+    <string name="edit_passenger_title">Passenger %1$d</string>
+    <string name="edit_remove_passenger">Remove passenger %1$d</string>
+    <string name="edit_label_name">Name</string>
+    <string name="edit_label_age">Age</string>
+    <string name="edit_label_status">Current status</string>
+    <string name="edit_gender_male_short">M</string>
+    <string name="edit_gender_female_short">F</string>
+    <string name="edit_gender_third_short">T</string>
+    <string name="edit_gender_male">Male</string>
+    <string name="edit_gender_female">Female</string>
+    <string name="edit_gender_third">Transgender</string>
+    <string name="edit_status_reads_as">Reads as %1$s</string>
+    <string name="edit_status_unrecognised">Not recognised — will be saved as typed</string>
+    <string name="edit_add_passenger">Add passenger</string>
+    <string name="edit_select_time">Select time</string>
+</resources>

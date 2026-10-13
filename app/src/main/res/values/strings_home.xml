@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_next_journey">Next journey</string>
+    <string name="home_past">Past</string>
+    <string name="home_no_return_yet">No return yet</string>
+    <string name="home_link_return">Link return</string>
+    <string name="home_open_trip">Open trip</string>
+
+    <string name="home_seat_coach">Coach</string>
+    <string name="home_seat_berth">Berth</string>
+    <string name="home_seat_type">Type</string>
+    <string name="home_hero_seat_label">Your seat</string>
+    <string name="home_hero_seat_label_named">Your seat · %1$s</string>
+    <string name="home_hero_seat_label_more">Your seat · %1$s · +%2$d more</string>
+
+    <string name="home_needs_review_title">Ticket from %1$s</string>
+    <string name="home_needs_review_title_unnamed">Imported ticket</string>
+    <string name="home_needs_review_subtitle">Tap to fill missing details</string>
+    <string name="home_needs_review_subtitle_missing">Tap to fill missing details · %1$s</string>
+    <string name="home_needs_review_more">%1$s +%2$d</string>
+    <string name="home_missing_pnr">PNR</string>
+    <string name="home_missing_train_number">train number</string>
+    <string name="home_missing_from">from station</string>
+    <string name="home_missing_to">to station</string>
+    <string name="home_missing_departure">departure</string>
+
+    <plurals name="home_other_passengers">
+        <item quantity="one">+%d passenger</item>
+        <item quantity="other">+%d passengers</item>
+    </plurals>
+
+    <string name="home_menu_close">Close menu</string>
+    <string name="home_empty_body">Pick several at once, or share a ticket from any app. Round trips are grouped automatically, and everything stays on this phone.</string>
+</resources>

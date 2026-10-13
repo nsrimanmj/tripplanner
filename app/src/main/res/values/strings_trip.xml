@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="trip_options">Trip options</string>
+    <string name="trip_ticket_options">Ticket options</string>
+    <string name="trip_unlink_tickets">Unlink tickets</string>
+    <string name="trip_link_return_button">Link return ticket</string>
+    <string name="trip_delete_ellipsis">Delete…</string>
+
+    <string name="trip_status_upcoming">Upcoming</string>
+    <string name="trip_status_in_progress">In progress</string>
+    <string name="trip_status_past">Past</string>
+    <string name="trip_pairing_chip_auto">Auto-paired</string>
+    <string name="trip_pairing_chip_manual">Linked manually</string>
+
+    <string name="trip_role_outbound">OUTBOUND</string>
+    <string name="trip_role_return">RETURN</string>
+    <string name="trip_role_one_way">ONE WAY</string>
+    <string name="trip_role_leg">LEG %1$d</string>
+    <string name="trip_overline">%1$s · %2$s</string>
+
+    <string name="trip_boarding_here">Boarding here · booked from %1$s</string>
+    <string name="trip_arrival_na">Arrival N.A.</string>
+    <string name="trip_pnr_label">PNR</string>
+    <string name="trip_copy_pnr">Copy PNR</string>
+    <string name="trip_passenger">Passenger</string>
+    <string name="trip_passengers">Passengers · %1$d</string>
+    <string name="trip_total_fare">Total fare</string>
+
+    <string name="trip_pairing_auto_title">Paired automatically</string>
+    <string name="trip_pairing_auto_body">The return leaves from %1$s within 14 days of the outbound, so these tickets were grouped.</string>
+    <string name="trip_pairing_auto_body_generic">The return leaves from the outbound destination within 14 days of the outbound, so these tickets were grouped.</string>
+    <string name="trip_pairing_manual_title">Linked manually</string>
+    <string name="trip_pairing_manual_body">You linked these tickets yourself. Unlink them, or reset to let the app pair them automatically.</string>
+    <string name="trip_pairing_none_title">No return yet</string>
+    <string name="trip_pairing_none_body">Link a return ticket to see this as a round trip.</string>
+
+    <string name="trip_link_title">Link a return ticket</string>
+    <string name="trip_link_subtitle">Likely returns from %1$s are listed first.</string>
+    <string name="trip_link_subtitle_generic">Likely returns are listed first.</string>
+    <string name="trip_link_likely">Likely return</string>
+    <string name="trip_link_confirm">Link tickets</string>
+    <string name="trip_link_empty">No other one-way tickets to link yet.</string>
+</resources>

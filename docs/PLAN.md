@@ -33,6 +33,7 @@ The owner travels by Indian Railways (IRCTC) about every 2 weeks, on different t
 | Pair window | **14 days**, from outbound departure to return departure (`PAIRING_WINDOW_DAYS = 14`). |
 | Package | Keep `com.example.tripchecker`. **Do not rename.** |
 | Network | Fully offline. **No `INTERNET` permission.** Supabase sync is a future phase; only keep the design sync-friendly. |
+| Visual design | Follow the mockups in `design/` (Material 3, indigo brand scheme, light + dark). Spec in §3.9 and §3.10; work in milestone **MD**. |
 
 **Critical fact about real tickets:** the owner's sample ticket was saved via *Microsoft Print to PDF*. It has **no text layer**: no fonts, and every glyph is drawn as a vector path. So **OCR is mandatory**. Original IRCTC downloads usually do have a text layer. The extractor therefore tries the text layer first and falls back to OCR.
 
@@ -133,13 +134,17 @@ importer/ImportManager.kt          app-scoped queue + StateFlow<List<ImportItem>
 importer/TicketImporter.kt         one file: copy -> dedupe -> extract -> parse -> upsert
 importer/ParsedTicketMapper.kt     PURE: ParsedTicket (+ids, now, method, pdf info) -> Ticket; merge into existing Ticket
 ui/navigation/Routes.kt, AppNavHost.kt
-ui/home/HomeScreen.kt, HomeViewModel.kt, components/{NextJourneyCard, RoundTripCard, OneWayCard, NeedsReviewRow}.kt
-ui/importflow/ImportScreen.kt, ImportViewModel.kt
-ui/trip/TripDetailScreen.kt, TripDetailViewModel.kt, components/{LegSection, PassengerRow, LinkTicketSheet}.kt
-ui/edit/EditTicketScreen.kt, EditTicketViewModel.kt
+ui/home/HomeScreen.kt, HomeViewModel.kt, components/{HomeHeader, NextJourneyHero, NeedsReviewRow, TripGroupCard, PastTripRow, AddTicketFabMenu, HomeEmptyState}.kt
+ui/importflow/ImportScreen.kt, ImportViewModel.kt, components/{ImportSummaryCard, ImportItemRow}.kt
+ui/trip/TripDetailScreen.kt, TripDetailViewModel.kt, components/{TripHeader, LegCard, RouteTimeline, PnrBlock, PassengerRow, StayConnector, PairingInfoCard, LinkReturnSheet}.kt
+ui/edit/EditTicketScreen.kt, EditTicketViewModel.kt, components/{MissingFieldsBanner, FormSectionCard, StationFieldRow, PassengerEditorCard}.kt
 ui/common/TicketActions.kt         openPdf(context, ticket), sharePdf(...)
-ui/common/Formatters.kt            IST date/time, duration, countdown, money
-ui/theme/                          (existing)
+ui/common/Formatters.kt            IST date/time, duration, countdown, ranges, money, PNR grouping
+ui/common/StatusTone.kt            PURE: BerthStatus -> tone + label (§3.10)
+ui/common/components/              TagChip, StatusChip, DateBadge, IconTile, SectionHeader, JoinedList, TicketActionRow
+ui/theme/Color.kt, Theme.kt, Type.kt, Shape.kt, Dimens.kt   brand scheme + type + shapes (§3.10)
+domain/grouping/CityNames.kt       PURE: Station -> display city ("Hyderabad"), route titles
+domain/text/DisplayText.kt         PURE: title-casing for station/train/passenger names (§3.10)
 ```
 
 **Rules:**
@@ -402,85 +407,396 @@ data class JourneyGroup(
 
 ### 3.9 Screens (Compose, Material 3, type-safe navigation)
 
-**Routes:** `Home`, `Import`, `TripDetail(anchorTicketId: String)`, `EditTicket(ticketId: String?)` (`null` = create manually).
+> **Visual source of truth:** the mockups in `design/`.
+> - `design/screens/*.png`: 7 phone screens (390 dp wide), light theme. **Open the matching PNG before building or changing a screen.**
+> - `design/Trip Checker — Material 3 redesign.html`: the same screens as live HTML with a light/dark toggle. It is a 4 MB self-unpacking bundle; open it in a browser, don't parse it. Every token you need is transcribed in §3.10.
+> - Where the mockups and this spec disagree on **behaviour**, this spec wins. On **looks** (layout, colour roles, sizes, copy), the mockups win.
+> - Mockup data (names, dates, PNRs, file names) is sample data only.
 
-**TripDetail** shows *the group that contains `anchorTicketId`*. This stays stable even if regrouping changes the keys. If the ticket was deleted, pop back.
+**Routes:** `Home`, `Import`, `TripDetail(anchorTicketId: String, openLinkSheet: Boolean = false)`, `EditTicket(ticketId: String?)` (`null` = create manually).
 
-**Home** (`HomeViewModel` → `StateFlow<HomeUiState>`; re-evaluates "now" every 60 s via a ticker flow):
-- Top app bar titled "Trip Checker".
-- **Next journey hero card:** the earliest leg with `departureAt > now` across all groups. It shows:
-  - a countdown: "in 2d 4h"; "Today · 17:00"; or "Tomorrow · 17:00"
-  - `17001 SNSI SC EXPRESS`
-  - `SNSI → BMT`
-  - departure time
-  - **big coach and berth** (`B4 · 33 · LOWER`; for WL show `WL 12`)
-  - a **Go to ticket** button
-- **Needs review** section, only shown if non-empty: rows labelled "Ticket from <originalFileName> — tap to fill missing details". Tapping opens `EditTicket(id)`.
-- Tickets with `needsReview` appear **only** in the Needs review section. Filter them out of the groups below and out of the hero card.
-- **Upcoming** section: groups with UPCOMING or IN_PROGRESS status.
-  - `RoundTripCard`: two stacked legs, each with route, date and time, train no and coach/berth; plus chips "Round trip" and "In progress" when applicable.
-  - `OneWayCard`: one leg plus a muted "No return yet" hint.
-  - `CUSTOM`: all legs stacked.
-  - Cancelled tickets: struck-through text with a "Cancelled" chip.
-- **Past** section: grouped under month headers ("August 2026"), most recent first.
-- **Empty state:** an illustration or icon, the text "Import your IRCTC ticket PDFs", and a button.
-- **FAB** (extended, "Add ticket") opens a small menu with "Import PDFs" and "Add manually".
-- Tapping a card opens `TripDetail(anchorTicketId = first leg id)`.
+**TripDetail** shows *the group that contains `anchorTicketId`*. This stays stable even if regrouping changes the keys. If the ticket was deleted, pop back. When `openLinkSheet` is true and the group is ONE_WAY, open the Link-return sheet once on entry.
 
-**Import screen:**
-- A list of `ImportItem` rows: name, a state icon or progress indicator, and the state text.
-  - Tap a `Saved` or `Updated` row to open TripDetail.
-  - Tap a `NeedsReview` row to open EditTicket.
-- A "Done" button that clears finished items and returns Home.
-- Show a running summary such as "3 saved · 1 duplicate · 1 needs review".
+#### Home (`Home.png`, `Home — Empty state.png`, `Home — Add ticket menu.png`)
 
-**Trip detail:**
-- **Header:** kind chip ("Round trip", "One way" or "Custom"), date range, and status.
-- **Per leg** (`LegSection`):
-  - Train no and name.
-  - Route block: From → To with names, plus "Boarding at X" when the boarding station differs from From.
-  - Departure and arrival in IST, with duration ("14h 59m").
-  - Class and quota chips, plus distance.
-  - PNR in a monospace style with a **copy** button (`ClipboardManager`, then a snackbar "PNR copied").
-  - Passengers (`PassengerRow`): name, age and gender; the **current status shown prominently**; the booking status muted.
-  - Total fare.
-  - Buttons:
-    - **Go to ticket** (primary; hidden when `pdfFileName == null`)
-    - Share PDF
-    - Edit
-    - overflow menu: Mark as cancelled/active, Delete (`AlertDialog` confirm; deletes the row and the PDF)
-- **Group actions:**
-  - If ROUND_TRIP or CUSTOM: "Unlink". This sets `autoPairDisabled = true` and `linkGroupId = null` on all legs.
-  - If ONE_WAY: "Link return ticket…". This opens a `ModalBottomSheet` listing other ONE_WAY tickets, sorted by closeness in time and with likely returns (reverse city route) first. Selecting one sets the same new UUID `linkGroupId` and `autoPairDisabled = false` on both tickets.
-  - If any leg is manual or has auto-pairing disabled: "Reset to automatic pairing". This clears `linkGroupId` and `autoPairDisabled` on all legs.
-- Show an "Extracted via OCR — double-check details" hint when `extractionMethod == OCR`.
+`HomeViewModel` → `StateFlow<HomeUiState>`; re-evaluates "now" every 60 s via a ticker flow. The screen is one `LazyColumn` on `surface`; sections are 28 dp apart; cards are inset 12 dp from the screen edge and section headers 20 dp.
 
-**Edit ticket** (also used for manual create):
-- A text field per field.
-  - Station inputs are a code plus a name; the code is uppercased.
-  - Dates use the M3 `DatePickerDialog`. **Gotcha:** the picker returns UTC-midnight millis, so convert with `ZoneOffset.UTC` to a `LocalDate`.
-  - Times use an M3 `TimePicker` in a dialog.
-  - Class and quota are free text.
-- Passenger list editor: add, remove, and edit name/age/gender/current status.
-- Required fields that are missing are highlighted with an error colour and helper text.
-- Save writes the ticket. It sets `needsReview = false` when all required fields are present, sets `updatedAt`, and pops back.
-- In create mode: `extractionMethod = MANUAL` and `pdfFileName = null`.
+- **Header:** a M3 `LargeTopAppBar` (or `LargeFlexibleTopAppBar` with its `subtitle` slot, if the BOM's material3 has it) with `exitUntilCollapsedScrollBehavior`.
+  - Title "Trip Checker" in `headlineLarge`.
+  - Subtitle `bodyMedium`/`onSurfaceVariant`: today's date plus the upcoming count, e.g. "Sat, 1 Aug · 2 trips ahead" ("1 trip ahead", "No trips ahead"). The count is the number of UPCOMING + IN_PROGRESS groups. If the app bar has no subtitle slot, render it as the first list item.
+  - Actions: **Search** (shown only once M7.1 exists) and **More options** (shown only when it has items; until M7.4/M7.5 there are none, so hide it).
+- **Next journey hero** (`NextJourneyHero`): the earliest leg with `departureAt > now` across all groups. Section header "Next journey". A `primaryContainer` surface, corner 32 dp, padding 20 dp, 20 dp gaps:
+  1. **Top row:** an overline in `labelLarge` caps: "MON, 3 AUG · 17:00", or "TODAY · 17:00" / "TOMORROW · 17:00". Under it, the countdown in `TripTypography.countdown`: "in 2d 4h" (≥ 24 h), "in 5h 20m" (< 24 h), "in 12m" (< 1 h). On the right, a 52 dp `primary` tile (corner 18) with the train icon.
+  2. **Route row:** a three-column row.
+     - Left: origin code (`TripTypography.stationCodeHero`), name in title case (`bodySmall`), departure time (`titleMedium`).
+     - Middle: a hollow dot, a line, an arrow, a line, a filled dot, with the duration ("14h 59m") under it.
+     - Right (end-aligned): destination code, name, and arrival time with a `+1` superscript day offset ("07:59 ⁺¹"). If arrival is null, show "—".
+  3. **Train line** (`bodyMedium`, medium weight): "17001 · SNSI SC Express · Third AC".
+  4. **Seat panel:** a `surfaceContainerLowest` card, corner 24 dp.
+     - Label "Your seat · Madhuri" (with more than one passenger: "Your seat · Madhuri · +3 more"), plus a `StatusChip` on the right ("✓ Confirmed").
+     - Then three columns: **Coach / Berth / Type** with large values (`TripTypography.seatValue`): `B4` `33` `Lower`.
+     - For RAC, WL and similar, replace the three columns with one large value ("WL 12", "RAC 23") and the matching tone chip.
+     - Use the first passenger whose status is not CAN. If there are no passengers, hide the panel.
+  5. **Actions:** "Go to ticket" (filled `primary` pill, 56 dp, open_in_new icon, fills the width) and a 56 dp square **Share** button (corner 18, `surfaceContainerLowest` container, `primary` icon). Hide both when `pdfFileName == null`.
+  - Tapping the hero card body opens `TripDetail(that leg's id)`.
+- **Needs review** (only if non-empty): a header "Needs review" with a `tertiary` count badge (20 dp pill). One `NeedsReviewRow` per ticket:
+  - a `tertiaryContainer` row, corner 24 dp, min height 72 dp
+  - a 40 dp `tertiary` icon tile (corner 14) with the edit icon
+  - title "Ticket from <originalFileName>" (`titleSmall`)
+  - subtitle "Tap to fill missing details · PNR, departure" (up to 2 missing required fields in plain words, then "+N")
+  - a trailing chevron
+  - Tapping opens `EditTicket(id)`.
+  - Tickets with `needsReview` appear **only** here. Filter them out of the groups below and out of the hero.
+- **Upcoming:** groups with UPCOMING or IN_PROGRESS status, rendered with `TripGroupCard`. It is a `surfaceContainerLow` card, corner 28 dp, padding 16, 12–14 dp gaps.
+  - **Header row:** a kind `TagChip` ("⇄ Round trip" on `secondaryContainer`; "One way" outlined; "Custom" outlined), an "In progress" status chip when applicable, and the date range on the right (`bodySmall`/`onSurfaceVariant`): "3 – 10 Aug · 8 days" for multi-leg, "Sat, 22 Aug" for one-way.
+  - **Title** (ROUND_TRIP and CUSTOM only), in `titleLarge`: "Shirdi ⇄ Hyderabad" (CUSTOM: "Shirdi → Hyderabad → Pune"; see `CityNames`).
+  - **Leg rows** in a `JoinedList` (`surfaceContainerLowest`, 20 dp outer and 6 dp inner corners, 4 dp gap). Each row has:
+    - a `DateBadge` (48×56 dp, corner 14, "MON / 3 / AUG"). The leg that departs next is on `primaryContainer`; others are on `surfaceContainerHighest`.
+    - route "SNSI → BMT" (`titleMedium`)
+    - meta "17:00 · 17001 · 3A", with " · boards LPI" appended when boarding ≠ from
+    - on the right:
+      - seat "B4 · 33" (`titleMedium` bold), with the berth type under it, or "+3 passengers" when there are several
+      - for a waitlist or RAC status, a tone chip instead ("WL 12" on `tertiaryContainer`)
+  - **One-way footer:** "No return yet" (`bodySmall`/`onSurfaceVariant`) on the left; on the right a `TextButton` "Link return" with the link icon. It navigates to `TripDetail(id, openLinkSheet = true)`.
+  - **Cancelled legs:** the route is struck through in `onSurfaceVariant`, with a "Cancelled" chip (`errorContainer`) in place of the seat.
+  - Tapping a card opens `TripDetail(anchorTicketId = first leg id)`.
+- **Past:** a section header "Past", then month headers ("JULY 2026" in `labelMedium` caps, `primary`), most recent first.
+  - Under each month, compact `PastTripRow`s in a `JoinedList` (`surfaceContainerLow`, min height 68 dp). Each has:
+    - a 40 dp circular `surfaceContainerHighest` icon (swap_horiz for round trip or custom, arrow_forward for one-way)
+    - title "Shirdi ⇄ Hyderabad" or "SNSI → BMT"
+    - subtitle "17 – 24 Jul · 17001 / 17002" or "Sun, 5 Jul · 17001"
+    - a trailing chevron, or a "Cancelled" chip for a cancelled one-way
+- **FAB:** an `ExtendedFloatingActionButton` "Add ticket" (add icon, `primary`, corner 18) that collapses to icon-only while scrolling. Tapping it opens the **Add ticket menu** (`Home — Add ticket menu.png`):
+  - a full-screen scrim (`surface` at ~70 % alpha) over the content
+  - two right-aligned 56 dp `primaryContainer` pill items stacked above the FAB: "Import PDFs" (description icon) and "Add manually" (edit icon)
+  - the FAB morphs into a 56 dp round `primary` button with a close icon
+  - Use material3's `FloatingActionButtonMenu` + `ToggleFloatingActionButton` if the BOM ships them (opting into `ExperimentalMaterial3ExpressiveApi` is fine; log it). Otherwise build it with `AnimatedVisibility` and `SmallExtendedFloatingActionButton`s.
+  - Back or a scrim tap closes it.
+  - "Import PDFs" → `OpenMultipleDocuments`; "Add manually" → `EditTicket(null)`.
+- **Empty state** (`Home — Empty state.png`; no tickets at all):
+  - the header with no subtitle
+  - a centred illustration: a vector drawable `ic_empty_tickets.xml` showing a tilted white ticket with the train glyph and placeholder bars, over `primaryContainer`/`tertiaryContainer` blobs. Recreate it from the PNG as a vector, using theme-friendly colours.
+  - headline "Import your IRCTC ticket PDFs" (`headlineSmall`, centred)
+  - body "Pick several at once, or share a ticket from any app. Round trips are grouped automatically, and everything stays on this phone."
+  - a full-width filled 56 dp "Import PDFs" button (description icon)
+  - a `TextButton` "Add manually"
+  - No FAB in the empty state.
 
-**Go to ticket and Share** (`ui/common/TicketActions.kt`):
+#### Import (`Import.png`)
+
+- **Top app bar:** back arrow and "Import".
+- **Summary card** (`ImportSummaryCard`): `surfaceContainerLow`, corner 28 dp.
+  - "5 of 7" (`headlineMedium` bold) = finished/total, with "Reading one at a time" on the right while anything is queued or reading, and "All done" otherwise.
+  - A determinate `LinearProgressIndicator` (M3 style with the track gap).
+  - A `FlowRow` of count chips, shown only when non-zero: "2 saved" (`primaryContainer`), "1 updated" (`primaryContainer`), "1 duplicate" (`surfaceContainerHighest`), "1 needs review" (`tertiaryContainer`), "1 failed" (`errorContainer`).
+- **Rows** (`ImportItemRow`) in a `JoinedList` (`surfaceContainerLow`, min height 64 dp). Each row has a 40 dp icon tile (corner 14), the file name (`titleMedium`, one line, ellipsized in the middle) and a subtitle:
+
+  | State | Tile (container / icon) | Subtitle | Tap |
+  |---|---|---|---|
+  | `Queued` | `surfaceContainerHighest` / hourglass | "Queued" | — |
+  | `Reading` | `secondaryContainer` / indeterminate `CircularProgressIndicator` | "Reading…" in `primary` | — |
+  | `Saved` | `primaryContainer` / check | "Saved · SNSI → BMT, 3 Aug · via OCR" (`via text` for TEXT_LAYER); "Saved · paired as round trip" when that ticket is now in a ROUND_TRIP group | TripDetail, chevron |
+  | `Updated` | `primaryContainer` / check | "Updated · latest status saved" | TripDetail, chevron |
+  | `Duplicate` | `surfaceContainerHighest` / content_copy | "Already imported" | TripDetail of the existing ticket, no chevron |
+  | `NeedsReview` | `tertiaryContainer` / edit | "Needs review · tap to finish" | EditTicket, chevron |
+  | `Failed` | `errorContainer` / error | the reason, in `error` ("Not a PDF", "Password-protected PDF", …) | — |
+
+  The route and pairing text come from combining the items with `repo.observeTickets()` and `ObserveJourneysUseCase` in `ImportViewModel`.
+- **Footer:** "Importing continues if you leave this screen" (`bodySmall`, centred), then a full-width 56 dp filled "Done" button. Done clears finished items and returns Home.
+
+#### Trip detail (`Trip detail — Round trip.png`)
+
+- **Top app bar** (transparent, no title):
+  - back
+  - **Trip options** overflow. Its items depend on the group:
+    - "Unlink tickets" (ROUND_TRIP or CUSTOM)
+    - "Link return ticket…" (ONE_WAY)
+    - "Reset to automatic pairing" (any leg manual or auto-pair disabled)
+- **Header** (`TripHeader`, 20 dp side padding):
+  - A row of `TagChip`s:
+    - kind: "⇄ Round trip" (`secondaryContainer`), "One way" (outlined) or "Custom" (outlined)
+    - status: a dot plus "Upcoming" (`primaryContainer`), "In progress" (`primaryContainer`) or "Past" (`surfaceContainerHighest`)
+    - pairing, outlined: "Auto-paired" or "Linked manually". None for ONE_WAY.
+  - Title in `headlineMedium` bold: "Shirdi ⇄ Hyderabad", "Shirdi → Hyderabad", or a CUSTOM chain.
+  - Subtitle (`bodyLarge`/`onSurfaceVariant`):
+    - multi-leg: "Mon, 3 Aug – Mon, 10 Aug · 8 days · ₹3,657.65 total". The total sums the legs that have a fare; omit it if none do.
+    - one-way: "Sat, 22 Aug · 17001".
+- **Per leg** (`LegCard`): a `surfaceContainerLow` card, corner 32 dp, padding 20 dp, 18 dp gaps.
+  1. **Overline** (`labelMedium` caps, `primary`): "OUTBOUND · MON, 3 AUG" / "RETURN · MON, 10 AUG" for ROUND_TRIP, "ONE WAY · SAT, 22 AUG", or "LEG 2 · …" for CUSTOM. Title "17001 · SNSI SC Express" (`titleLarge`).
+     - A per-ticket **Ticket options** overflow on the right: "Mark as cancelled" / "Mark as active", and "Delete…" (`AlertDialog` confirm; deletes the row and the PDF).
+     - A cancelled leg shows a "Cancelled" chip (`errorContainer`) next to the overline.
+  2. **OCR hint** (when `extractionMethod == OCR`): a `tertiaryContainer` banner, corner 14, with an info icon and "Extracted via OCR — double-check details".
+  3. **Route timeline** (`RouteTimeline`): three columns (64 dp time, 20 dp rail, station).
+     - **Top stop:** time (`titleLarge` bold) with the date under it ("Mon 3 Aug"); a hollow 14 dp ring (3 dp `primary` border); the station code (`TripTypography.stationCode`) with its title-cased name.
+     - **Middle:** an `outlineVariant` rail, and a `surfaceContainerHighest` chip with the schedule icon and "14h 59m · 772 km". If arrival is null, show the distance only.
+     - **Bottom stop:** a filled `primary` dot; arrival time and date, or "—" with "Arrival N.A."
+     - **Boarding ≠ from:** the top stop shows the **boarding** station, with a `primaryContainer` chip under the name: "Boarding here · booked from SC".
+  4. **Chips** (`surfaceContainerHighest`, 32 dp, corner 10): "Third AC · 3A" and "Tatkal · TQ".
+  5. **PNR block** (`PnrBlock`): `surfaceContainerLowest`, corner 20.
+     - Label "PNR", then the PNR grouped 3-3-4 ("875 165 2729") in `TripTypography.pnr`.
+     - A 48 dp copy button on the right (`secondaryContainer`, corner 16, content description "Copy PNR"). It copies the **ungrouped** PNR via `ClipboardManager`, then shows the snackbar "PNR copied".
+  6. **Passengers:** header "Passenger" or "Passengers · 4" (`labelLarge`/`onSurfaceVariant`), then `PassengerRow`s in a `JoinedList` (`surfaceContainerLowest`). Each row has:
+     - a 40 dp avatar circle with the initial (`secondaryContainer`; `surfaceContainerHighest` when cancelled)
+     - the name in title case (`titleMedium`)
+     - meta "26 · F · booked CNF/B4/33" (`bodySmall`/`onSurfaceVariant`)
+     - on the right, the **current status shown prominently**:
+       - CNF/RAC with a berth: "B4 · 33" (`titleMedium`, extra bold), then the berth type plus a `StatusChip` ("CNF", "RAC")
+       - waitlists: "RLWL 5" plus a "Waitlist" chip
+       - CAN: only a "Cancelled" chip
+  7. **Total fare:** a row with "Total fare" (`bodyMedium`/`onSurfaceVariant`) and "₹1,494.05" (`titleLarge` bold).
+  8. **Actions** (`TicketActionRow`):
+     - **Go to ticket**: filled `primary` pill, 56 dp, fills the width. Hidden when `pdfFileName == null`.
+     - **Share PDF**: 56 dp square, corner 18, `secondaryContainer`. Hidden when `pdfFileName == null`.
+     - **Edit**: 56 dp square, corner 18, outlined.
+- **Between legs** (`StayConnector`): a dashed `outlineVariant` line, a `surfaceContainerHigh` pill "6 days in Hyderabad", then another dashed line.
+  - The count is the days from leg N's arrival date (or its departure date if arrival is null) to leg N+1's departure date, in IST.
+  - Wording: "1 day in X", or "Same-day connection" for 0.
+- **Footer** (`PairingInfoCard`): an outlined card, corner 28, padding 16.
+  - Auto ROUND_TRIP:
+    - title "Paired automatically"
+    - body "The return leaves from Hyderabad within 14 days of the outbound, so these tickets were grouped."
+    - an `OutlinedButton` "Unlink tickets" (link_off icon). Unlink sets `autoPairDisabled = true` and `linkGroupId = null` on all legs.
+  - Manual: "Linked manually", with "Unlink tickets" and "Reset to automatic pairing". Reset clears `linkGroupId` and `autoPairDisabled` on all legs.
+  - ONE_WAY:
+    - title "No return yet"
+    - body "Link a return ticket to see this as a round trip."
+    - a filled tonal button "Link return ticket" (link icon) that opens the sheet
+    - If `autoPairDisabled` is set, also show "Reset to automatic pairing".
+
+#### Link return sheet (`Link return sheet.png`)
+
+A `ModalBottomSheet` (`surfaceContainerLow`, drag handle).
+- Title "Link a return ticket" (`headlineSmall`). Subtitle "Likely returns from <destination city> are listed first."
+- **Candidates:** other ONE_WAY, non-cancelled, non-needs-review tickets.
+  - Likely returns (reverse city route) come first, then the rest, each sorted by closeness in time.
+  - They are shown as single-choice rows in a `JoinedList` (`surfaceContainerLowest`; the selected row is `primaryContainer`), each with:
+    - a `RadioButton`
+    - route "BMT → SNSI" (`titleMedium`)
+    - meta "Sat, 29 Aug · 21:40 · 17002"
+    - on the right, a "Likely return" chip (filled `primary` when selected, `primaryContainer` otherwise) above "7 days later" (or "3 days earlier")
+  - The whole row is `selectable(role = RadioButton)`.
+- **Bottom actions:** `TextButton` "Cancel", plus a filled "Link tickets" with the link icon. It is disabled until a row is selected.
+  - "Link tickets" sets the same new UUID `linkGroupId` and `autoPairDisabled = false` on both tickets, then dismisses.
+- **Empty:** "No other one-way tickets to link yet."
+
+#### Edit ticket (`Review Edit ticket.png`; also used for review and manual create)
+
+- **Top app bar:**
+  - a close icon (on unsaved changes, confirm discard with an `AlertDialog`)
+  - title "Review ticket" (`needsReview`), "Edit ticket" or "Add ticket" (create)
+  - a small filled "Save" button as the action
+- **Missing-fields banner** (`MissingFieldsBanner`), shown only while required fields are missing: `errorContainer`, corner 24.
+  - A warning icon with "2 required fields missing" (`titleMedium` bold).
+  - The list in plain words: "PNR · Departure date and time".
+  - "From scan_0812.pdf · read with OCR", with an "Open PDF" button (a `surface` pill with the open_in_new icon) when a PDF exists.
+  - It updates live as fields are filled.
+- **Section cards** (`FormSectionCard`: `surfaceContainerLow`, corner 28, padding 16, title `titleMedium`). All inputs are `OutlinedTextField`s.
+  - **Ticket:**
+    - PNR\* (full width, number keyboard, max 10 digits; supporting text "Required · not found in the PDF" when missing)
+    - Train no. (≈ 40 % width, number keyboard) and Train name
+  - **Route** (`StationFieldRow`: a ~96 dp code field, uppercased and bold, plus a Station name field):
+    - From\*
+    - Boarding (placeholders "Code" / "Same as From"; supporting "Optional · only if you board at a different station")
+    - To\*
+  - **Schedule · IST:**
+    - Departure date\* and Time\*, both required, side by side. These are read-only fields with calendar or clock trailing icons, and tapping opens the M3 `DatePickerDialog` / `TimePicker` dialog. When missing, show the supporting text "Required for grouping into trips".
+    - Arrival date and Time.
+    - **Gotcha:** the date picker returns UTC-midnight millis, so convert with `ZoneOffset.UTC` to a `LocalDate`.
+    - Display dates as "Tue, 4 Aug 2026".
+  - **Class and fare:** a 2×2 grid of Class, Quota, Distance (km) and Total fare (₹) (decimal keyboard). Class and quota are free text.
+  - **Passengers:** one `PassengerEditorCard` each (`surfaceContainerLowest`, corner 20). It contains:
+    - "Passenger N" and a delete icon button (content description "Remove passenger N")
+    - Name
+    - Age (narrow) and a gender `SingleChoiceSegmentedButtonRow` (M / F / T)
+    - Current status in a monospace field, with live supporting text from `PassengerStatusParser`: "Reads as coach B4, berth 33, lower", or "Not recognised — will be saved as typed"
+    - Below the cards, a full-width `FilledTonalButton` "+ Add passenger".
+- **Bottom:** a full-width 56 dp filled "Save ticket" button. It does the same as the top-bar Save.
+- **Validation:** required fields that are missing get `isError = true`, an error label with `*`, and helper text. Save is always enabled: it saves and keeps `needsReview = true` while required fields are missing, and sets `needsReview = false` when all are present. It also sets `updatedAt`, then pops back.
+- **Create mode:** `extractionMethod = MANUAL`, `pdfFileName = null`, no banner PDF button.
+
+#### Go to ticket and Share (`ui/common/TicketActions.kt`)
+
 - Manifest `<provider androidx.core.content.FileProvider authorities="${applicationId}.fileprovider" exported="false" grantUriPermissions="true">` with `res/xml/file_paths.xml` → `<files-path name="tickets" path="tickets/"/>`.
 - Open: `Intent(ACTION_VIEW).setDataAndType(uri, "application/pdf").addFlags(FLAG_GRANT_READ_URI_PERMISSION or FLAG_ACTIVITY_NEW_TASK)`. Catch `ActivityNotFoundException` → snackbar "No PDF app found" with a **Share** action.
 - Share: `ACTION_SEND`, type `application/pdf`, `EXTRA_STREAM`, plus the grant flag, wrapped in `Intent.createChooser`.
 
-**Formatting** (`Formatters.kt`, all in IST, `Locale.ENGLISH`):
-- Date: `EEE, d MMM` → "Mon, 3 Aug"
-- Time: `HH:mm`
-- Month header: `MMMM yyyy`
-- Duration: "14h 59m"
-- Money: "₹1,494.05", using `NumberFormat` for `en-IN`
+#### Formatting (`Formatters.kt`, all in IST, `Locale.ENGLISH`, all pure and JVM-tested)
 
-**Visual style:** Material 3 with the existing dynamic colour theme. Use `ElevatedCard`s. Add a small train glyph and a route arrow between station codes. Station codes are large (titleLarge, bold) with the names small below. Keep it clean; no custom fonts.
+| Function | Example |
+|---|---|
+| date | `EEE, d MMM` → "Mon, 3 Aug" |
+| date with year (edit form) | "Tue, 4 Aug 2026" |
+| time | `HH:mm` → "17:00" |
+| hero overline | "MON, 3 AUG · 17:00", "TODAY · 17:00", "TOMORROW · 17:00" |
+| countdown | "in 2d 4h", "in 5h 20m", "in 12m" |
+| day offset | arrival on the next IST date → "+1" (null when the same day) |
+| month header | `MMMM yyyy` uppercased → "JULY 2026" |
+| date range | "3 – 10 Aug"; across months "28 Jul – 4 Aug"; across years "28 Dec 2026 – 4 Jan 2027"; detail form "Mon, 3 Aug – Mon, 10 Aug" |
+| trip length | inclusive IST days: 3 → 10 Aug = "8 days"; same day = "1 day" |
+| stay | "6 days in Hyderabad", "1 day in Hyderabad", "Same-day connection" |
+| relative days (link sheet) | "7 days later", "1 day later", "3 days earlier", "Same day" |
+| home subtitle | "Sat, 1 Aug · 2 trips ahead" / "1 trip ahead" / "No trips ahead" |
+| duration | "14h 59m" |
+| money | "₹1,494.05", using `NumberFormat` for `en-IN` |
+| PNR | "8751652729" → "875 165 2729"; anything other than 10 digits is returned unchanged |
 
-**Icons:** Material3 ≥1.4 no longer pulls in icons transitively. Add `androidx.compose.material:material-icons-core` (version managed by the BOM) for the basic `Icons.Default.*`. For anything else (train, link, link_off, content_copy, open_in_new), add **vector drawables** from Material Symbols under `res/drawable/`. **Do not add `material-icons-extended`**; it is huge.
+#### Icons
+
+Material3 ≥ 1.4 no longer pulls in icons transitively.
+- From `material-icons-core` (`Icons.Default.*`): Add, ArrowBack, ArrowForward, Check, Close, Create/Edit, Delete, Info, KeyboardArrowRight, MoreVert, Search, Share, Warning, DateRange.
+- Everything else is a **vector drawable** from Material Symbols (Rounded, weight 400, fill 1 where the mockup is filled) under `res/drawable/`:
+  - `ic_train` (directions_railway)
+  - `ic_swap_horiz`
+  - `ic_open_in_new`
+  - `ic_content_copy`
+  - `ic_link`
+  - `ic_link_off`
+  - `ic_schedule`
+  - `ic_description`
+  - `ic_hourglass`
+  - `ic_error`
+  - `ic_event` (calendar)
+  - `ic_empty_tickets` (the illustration)
+- **Do not add `material-icons-extended`**; it is huge.
+
+### 3.10 Visual design system (transcribed from `design/`)
+
+**Theme (`ui/theme/`):**
+- `TripcheckerTheme` uses the **brand colour scheme below by default**. Keep the `dynamicColor` parameter but default it to `false`; the mockups' look depends on these exact roles.
+- Follow the system light/dark setting.
+- Call `enableEdgeToEdge()` in `MainActivity`. Content draws behind the system bars and handles insets via `Scaffold`/`WindowInsets`.
+- Use **only M3 colour roles** (`MaterialTheme.colorScheme.*`) in UI code. No hard-coded colours outside `Color.kt`.
+
+**Colour scheme** (seed indigo `#4355B9`). Values marked † are not in the mockups; they are derived from the same tonal palettes.
+
+| Role | Light | Dark |
+|---|---|---|
+| primary | `#4355B9` | `#BAC3FF` |
+| onPrimary | `#FFFFFF` | `#08218A` |
+| primaryContainer | `#DEE0FF` | `#293CA0` |
+| onPrimaryContainer | `#00105C` | `#DEE0FF` |
+| secondary † | `#5A5D72` | `#C3C5DD` |
+| onSecondary † | `#FFFFFF` | `#2C2F42` |
+| secondaryContainer | `#E0E1F9` | `#43465A` |
+| onSecondaryContainer | `#181A2C` | `#E0E1F9` |
+| tertiary | `#77536D` | `#E6BAD7` |
+| onTertiary | `#FFFFFF` | `#44263D` |
+| tertiaryContainer | `#FFD7F1` | `#5D3C55` |
+| onTertiaryContainer | `#2D1228` | `#FFD7F1` |
+| error | `#BA1A1A` | `#FFB4AB` |
+| onError † | `#FFFFFF` | `#690005` |
+| errorContainer | `#FFDAD6` | `#93000A` |
+| onErrorContainer | `#410002` | `#FFDAD6` |
+| background, surface | `#FBF8FF` | `#121318` |
+| onBackground, onSurface | `#1B1B21` | `#E4E1E9` |
+| surfaceVariant † | `#E3E1EC` | `#46464F` |
+| onSurfaceVariant | `#46464F` | `#C6C5D0` |
+| surfaceContainerLowest | `#FFFFFF` | `#0D0E13` |
+| surfaceContainerLow | `#F5F2FA` | `#1B1B21` |
+| surfaceContainer | `#EFEDF4` | `#1F1F25` |
+| surfaceContainerHigh | `#E9E7EF` | `#2A292F` |
+| surfaceContainerHighest | `#E4E1E9` | `#35343A` |
+| surfaceDim † | `#DBD9E0` | `#121318` |
+| surfaceBright † | `#FBF8FF` | `#38393F` |
+| outline | `#767680` | `#90909A` |
+| outlineVariant | `#C6C5D0` | `#46464F` |
+| inverseSurface † | `#303036` | `#E4E1E9` |
+| inverseOnSurface † | `#F2EFF7` | `#303036` |
+| inversePrimary † | `#BAC3FF` | `#4355B9` |
+| surfaceTint | = primary | = primary |
+| scrim | `#000000` | `#000000` |
+
+**Typography (`Type.kt`):**
+- The mockups use Roboto Flex and Roboto Mono. The app uses the **system font** (`FontFamily.Default`, which is Roboto on Android) and `FontFamily.Monospace`. **Do not bundle or download fonts**; the app is offline and this keeps the APK small.
+- Mockup weight 650 → `SemiBold`; 700–750 → `Bold`; 800 → `ExtraBold`. Ignore `font-stretch`.
+
+| M3 role (override) | Size / line (sp) | Weight | Tracking | Used for |
+|---|---|---|---|---|
+| displaySmall | 44 / 50 | Bold | −1 | — (base of `countdown`) |
+| headlineLarge | 34 / 42 | SemiBold | −0.5 | Home title |
+| headlineMedium | 32 / 40 | Bold | −0.5 | Trip detail title, Import "5 of 7" |
+| headlineSmall | 28 / 36 | SemiBold | 0 | Sheet titles, empty-state headline |
+| titleLarge | 22 / 28 | SemiBold | 0 | Group card title, leg title, fare |
+| titleMedium | 16 / 22 | SemiBold | 0 | Leg-row route, passenger name, list titles, button text |
+| titleSmall | 14 / 20 | SemiBold | 0 | Section headers ("Next journey", "Upcoming") |
+| bodyLarge | 16 / 24 | Normal | 0.5 | Body |
+| bodyMedium | 14 / 20 | Normal | 0.25 | Body, subtitles |
+| bodySmall | 13 / 18 | Normal | 0.2 | Meta lines ("17:00 · 17001 · 3A") |
+| labelLarge | 14 / 20 | SemiBold | 0.1 | Chips, buttons |
+| labelMedium | 12 / 16 | Bold | 0.6 | Overlines in caps ("JULY 2026", "OUTBOUND · …") |
+| labelSmall | 11 / 16 | Bold | 0.5 | Small status chips ("CNF") |
+
+Extra styles go in `object TripTypography` (built from the roles above with `copy`):
+
+| Name | Spec | Used for |
+|---|---|---|
+| `countdown` | 44/50 Bold, −1 | Hero "in 2d 4h" |
+| `stationCodeHero` | 32/36 ExtraBold | Hero station codes |
+| `stationCode` | 22/26 ExtraBold | Timeline station codes |
+| `seatValue` | 30/36 Bold | Hero Coach/Berth/Type values |
+| `pnr` | Monospace, 22/30 SemiBold, +1 | PNR block |
+
+**Shapes (`Shape.kt`):**
+- `Shapes(extraSmall = 6.dp, small = 10.dp, medium = 16.dp, large = 20.dp, extraLarge = 28.dp)`.
+- Extra values in `object TripShapes`:
+  - `hero = 32.dp` (hero and leg cards)
+  - `tile = 14.dp` (icon tiles, date badges)
+  - `squareButton = 18.dp` (56 dp square action buttons, FAB)
+  - `joinedInner = 6.dp`
+  - Pill buttons use `CircleShape`.
+
+**Spacing (`Dimens.kt`):**
+- screen gutter for cards: 12 dp
+- text headers: 20 dp
+- card padding: 16 dp (hero and leg cards: 20 dp)
+- section gap: 28 dp
+- gap between cards: 12 dp
+- `JoinedList` item gap: 4 dp
+- primary buttons: 56 dp tall
+- minimum touch target: 48 dp
+
+**Shared components (`ui/common/components/`, each with light and dark `@Preview`s):**
+- **`TagChip(text, tone, leadingIcon?, dot?)`**: 28 dp, corner 10, `labelLarge`. Tones: `Secondary` (`secondaryContainer`), `Primary` (`primaryContainer`), `Outlined` (1 dp `outlineVariant` border, `onSurfaceVariant` text), `Neutral` (`surfaceContainerHighest`), `Tertiary`, `Error`. It is non-interactive, so use `Surface` and not `AssistChip`.
+- **`StatusChip(status: BerthStatus?)`**: picks its tone and label through `StatusTone` (below).
+- **`DateBadge(date, highlighted)`**: 48×56 dp, corner 14, with weekday/day/month stacked ("MON" `labelSmall`, "3" 22sp Bold, "AUG" `labelSmall`).
+- **`IconTile(icon, container, content, size = 40.dp)`**: a rounded square (corner 14) or a circle.
+- **`SectionHeader(title, count?)`**: `titleSmall` on `onSurfaceVariant`, with an optional `tertiary` count badge.
+- **`JoinedList`**: lays out items with M3 "connected" corners: first item 20/20/6/6, middle items 6, last item 6/6/20/20, a single item 20 all round, and a 4 dp gap.
+- **`TicketActionRow(onOpen, onShare, onEdit?, shareContainer)`**: a "Go to ticket" pill plus 56 dp square buttons.
+
+**`StatusTone` (pure; JVM-tested):**
+
+| Status code | Tone / container | Chip label (hero) | Chip label (passenger row) |
+|---|---|---|---|
+| `CNF` | Primary / `primaryContainer` | "Confirmed" (check icon) | "CNF" |
+| `RAC` | Secondary / `secondaryContainer` | "RAC" | "RAC" |
+| `WL`, `RLWL`, `PQWL`, `GNWL`, `TQWL`, `RSWL`, any other `*WL` | Tertiary / `tertiaryContainer` | "Waitlist" | "Waitlist" |
+| `CAN` | Error / `errorContainer` | "Cancelled" | "Cancelled" |
+| null or unknown | Neutral / `surfaceContainerHighest` | raw code or "Status unknown" | raw code |
+
+**`DisplayText.titleCase(raw, keepUpper)` (pure, `domain/text`; JVM-tested):**
+- Title-cases ALL-CAPS ticket text: "SAINAGAR SHIRDI" → "Sainagar Shirdi", and "MADHURI" → "Madhuri".
+- A word stays uppercase if any of these hold:
+  - it is in `keepUpper` (the ticket's station codes plus all `StationClusters` codes)
+  - it is in `{JN, AC, SF, SL, CC, EC, CNF, RAC}`
+  - it is ≤ 2 letters
+  - it contains a digit
+- Examples: "SNSI SC EXPRESS" → "SNSI SC Express"; "SECUNDERABAD JN" → "Secunderabad JN"; "THIRD AC" → "Third AC".
+- Apply it only at display time; the DB keeps the raw uppercase values.
+
+**`CityNames` (pure, `domain/grouping`; JVM-tested):**
+- `cityLabel(station)` returns the `StationClusters` city in title case ("HYDERABAD" → "Hyderabad", "BENGALURU" → "Bengaluru"). Otherwise it returns the title-cased station name, otherwise the code.
+- `routeTitle(group)`:
+  - ROUND_TRIP: "Shirdi ⇄ Hyderabad"
+  - ONE_WAY: "Shirdi → Hyderabad"
+  - CUSTOM: "A → B → C" (collapse consecutive duplicates)
+
+**Accessibility:**
+- Every icon-only button has a content description, matching the mockup's labels: "Search tickets", "More options", "Share ticket PDF", "Copy PNR", "Trip options", "Ticket options", "Edit ticket", "Remove passenger N", "Close".
+- Touch targets are ≥ 48 dp.
+- Seat and status information is not conveyed by colour alone; the chip label always carries it.
+- Layouts survive a 1.3× font scale: station names and file names ellipsize, and codes never wrap.
+- Check the dark theme with the same screens.
 
 ---
 
@@ -583,7 +899,72 @@ Every milestone ends **green**: `.\gradlew.bat assembleDebug testDebugUnitTest` 
   - every public class has a one-line KDoc
   - the `README.md` has a short description and the build/run steps
 
-### M7: Stretch (only after M0–M6 are all ticked)
+### MD: Material 3 redesign (match `design/` mockups)
+Do this after M6 and before M7. Every task means: open the matching `design/screens/*.png`, build to §3.9 and §3.10, add light **and** dark `@Preview`s with fake data for every new composable, then run the verify command. Keep stateful `XScreen` and stateless `XContent` apart, and keep files under ~400 lines (split into `components/`). Existing behaviour and tests must keep passing. Change the UI, not the domain rules.
+- [x] **MD.1** Theme foundation (§3.10).
+  - Rewrite `Color.kt` with the full light and dark brand schemes, and drop the template purple values.
+  - In `Theme.kt`, use the brand scheme by default (`dynamicColor = false`).
+  - Fill `Type.kt` with the M3 role overrides plus `TripTypography`.
+  - Add `Shape.kt` (`Shapes` + `TripShapes`) and `Dimens.kt`.
+  - Call `enableEdgeToEdge()` in `MainActivity`, with correct inset handling on every screen.
+  - *Accept:* builds. A preview "palette sheet" composable in `ui/theme/ThemePreview.kt` shows every role swatch and type style, light and dark.
+- [x] **MD.2** Pure display helpers, **test-first** (JVM):
+  - `DisplayText.titleCase` (every §3.10 example, plus empty or blank input)
+  - `StatusTone` (every row of the §3.10 table)
+  - `CityNames.cityLabel` and `routeTitle` (cluster city, unknown code falls back to the name, then the code; ROUND_TRIP, ONE_WAY and CUSTOM titles; duplicate collapse)
+  - the new `Formatters` functions from the §3.9 table: hero overline today/tomorrow/other, countdown boundaries at 1 h and 24 h, day offset, date ranges within a month/across months/across years, inclusive trip length, stay wording 0/1/N, relative days later/earlier/same, home subtitle 0/1/N, PNR grouping including non-10-digit input
+  - *Accept:* all pass.
+- [x] **MD.3** Vector drawables and shared components.
+  - Add the §3.9 Icons drawables (Material Symbols, from their path data), plus the `ic_empty_tickets` illustration recreated from `Home — Empty state.png`.
+  - Build `ui/common/components/`: `TagChip`, `StatusChip`, `DateBadge`, `IconTile`, `SectionHeader`, `JoinedList`, `TicketActionRow`.
+  - *Accept:* previews render in light and dark.
+- [x] **MD.4** Home redesign (`Home.png`):
+  - the large header with the computed subtitle
+  - `NextJourneyHero` with the seat panel and its waitlist variant
+  - `NeedsReviewRow` with the missing-field summary
+  - `TripGroupCard` for ROUND_TRIP, ONE_WAY (with the "Link return" footer) and CUSTOM, including the cancelled and in-progress states
+  - `PastTripRow` under month headers
+  - Extend `HomeUiMapper` and `HomeUiState` with what the cards need (city titles, date ranges, seat summaries, missing-field labels, the `+1` offset), and extend `HomeUiMapperTest` to cover the new fields.
+  - Add the `TripDetail.openLinkSheet` route argument.
+- [x] **MD.5** Home FAB menu and empty state (`Home — Add ticket menu.png`, `Home — Empty state.png`):
+  - an extended FAB that collapses on scroll
+  - the scrim menu with "Import PDFs" and "Add manually", closed by back or a scrim tap
+  - the empty state with the illustration, the "Import PDFs" button and the "Add manually" text button
+  - Log in §7 whether material3's `FloatingActionButtonMenu` or a hand-built menu was used.
+- [x] **MD.6** Import redesign (`Import.png`):
+  - `ImportSummaryCard` (finished/total, progress bar, non-zero count chips)
+  - `ImportItemRow` per the §3.9 state table, including the "paired as round trip" and "via OCR" subtitles; the subtitle builder must be pure, with a JVM test
+  - the footer note and the full-width Done button
+- [x] **MD.7** Trip detail redesign (`Trip detail — Round trip.png`):
+  - the transparent top bar with the Trip options menu
+  - `TripHeader` (kind, status and pairing chips; city title; the subtitle with the total fare)
+  - `LegCard`: overline, per-ticket options, OCR banner, `RouteTimeline` (with the boarding-differs and arrival-N.A. variants), class and quota chips, `PnrBlock` (copies ungrouped), `PassengerRow` with status tones, total fare, `TicketActionRow`
+  - `StayConnector` between legs
+  - `PairingInfoCard` for the auto, manual and one-way variants
+  - Extend the TripDetail ViewModel tests for the header subtitle, stay label and pairing-card variant.
+- [x] **MD.8** Link return sheet (`Link return sheet.png`):
+  - select-then-confirm radio rows (likely returns first) with "Likely return" chips and relative-days text
+  - Cancel and "Link tickets" (disabled until a row is selected)
+  - the empty state
+  - Exclude cancelled and needs-review tickets from the candidates, and extend `LinkReturnCandidatesTest` to cover it.
+  - Rename `LinkTicketSheet` → `LinkReturnSheet`.
+- [x] **MD.9** Edit / Review ticket redesign (`Review Edit ticket.png`):
+  - the top bar (close with a discard confirm, a mode-dependent title, a Save action)
+  - `MissingFieldsBanner`, live, with "Open PDF"
+  - section cards: Ticket, Route (`StationFieldRow`), Schedule · IST (read-only picker fields), Class and fare, Passengers
+  - `PassengerEditorCard` with the M/F/T segmented buttons and the live status read-back from `PassengerStatusParser`
+  - the "Add passenger" tonal button and the bottom "Save ticket" button
+  - The status read-back text builder must be pure, with a JVM test.
+  - Keep `EditTicketMapperTest` green.
+- [x] **MD.10** Polish and gate:
+  - every screen in dark theme, at 1.3× font scale, and with a long station name or file name: no clipping, codes never wrap
+  - content descriptions per §3.10
+  - all user-visible strings moved to `strings.xml`, with plurals via `pluralStringResource` for "N trips ahead", "N days" and "Passengers · N"
+  - remove dead composables from the old UI (`NextJourneyCard`, `RoundTripCard`, `OneWayCard`, `LegSection`, if they are unused)
+  - add the §6 visual checks to `docs/QA.md`
+  - *Accept:* `.\gradlew.bat assembleDebug testDebugUnitTest lintDebug` is green, with no lint errors.
+
+### M7: Stretch (only after M0–M6 and MD are all ticked)
 - [ ] **M7.1** Search bar on Home that filters by PNR, station code or name, and train number or name.
 - [ ] **M7.2** A "Train tomorrow" local reminder notification the evening before departure (WorkManager or AlarmManager; asks for `POST_NOTIFICATIONS`). It shows train, time and coach/berth.
 - [ ] **M7.3** A home-screen widget (Glance) for the next journey (route, time, coach/berth); tapping it opens the trip.
@@ -710,6 +1091,10 @@ Put real PDFs in `samples/` (gitignored) and push them with `adb push samples/ /
 11. Delete a ticket → it is gone, and its PDF is removed from app storage.
 12. Rotate the screen during an import → progress continues.
 13. Airplane mode → everything still works, including OCR (bundled model).
+14. **Visual check against `design/screens/*.png`:** Home (with hero, needs review, upcoming, past), the Add ticket menu, the empty state, Import (mid-import), Trip detail (round trip, with the boarding-differs leg), the Link return sheet, and Review ticket (with missing fields). Layout, colour roles and copy match the mockups.
+15. Switch the phone to **dark theme** → every screen above stays legible, with no hard-coded light colours.
+16. Set the system font size to the largest → no clipped text; station codes and seat numbers don't wrap.
+17. TalkBack → every icon-only button announces its label ("Copy PNR", "Share ticket PDF", "Trip options", …).
 
 ---
 
@@ -726,6 +1111,21 @@ Put real PDFs in `samples/` (gitignored) and push them with `adb push samples/ /
 - 2026-10-12 · daemon JVM · `gradle-daemon-jvm.properties` toolchain 21 · foojay JDK 25 provision fails offline; Studio JBR 21 works.
 - 2026-10-12 · code review · `gradle-daemon-jvm.properties` toolchain 25 · JDK 21 auto-download URL missing on Windows; Studio JBR is 25.
 - 2026-10-12 · code review P0/P1 · Unique PDF names, explicit Room upsert, ImportManager without Uri, OCR/PdfBox hardening, fare BigDecimal · ImportManagerTest, TicketImporterTest, TripGrouper boundary, EditTicketMapperTest.
+- 2026-10-13 · planning (MD) · The UI follows the owner's mockups in `design/` (PNG + HTML); new §3.9 screen spec, §3.10 tokens, milestone MD · owner request; replaces the earlier "dynamic colour, ElevatedCard, no custom fonts" style note.
+- 2026-10-13 · planning (MD) · Brand indigo scheme (seed `#4355B9`) by default; `dynamicColor` kept but defaults to `false` · the mockups rely on specific roles (primaryContainer hero, tertiary review rows); wallpaper colours would break that look. Roles marked † in §3.10 are derived, not from the mockups.
+- 2026-10-13 · planning (MD) · Use the system Roboto and `FontFamily.Monospace` instead of the mockups' Roboto Flex / Roboto Mono · offline app with no downloadable fonts, bundling variable fonts costs APK size, and visual parity is close enough. Weight 650 maps to SemiBold, and `font-stretch` is ignored.
+- 2026-10-13 · planning (MD) · Home Search and More-options actions are hidden until M7.1 / M7.4–M7.5 give them a purpose · the mockup shows them, but empty menus are worse than no menu.
+- 2026-10-13 · planning (MD) · The Link-return sheet changes from tap-to-link to select-then-"Link tickets"; Edit Save always saves (it keeps `needsReview` while required fields are missing) · matches the mockups and avoids accidental links and lost partial edits.
+- 2026-10-13 · MD.2 · `DisplayText` lives in `domain/text` (not `ui/common`) and `StationClusters.isKnownCode` was added · `CityNames` (domain) uses it, so it can't depend on a ui package; the accessor fixes "PUNE" (its city key equals its code).
+- 2026-10-13 · MD.2 · `formatCountdownIn` returns "now" under 1 minute; the old `formatCountdown` ("Today · 17:00") is kept for existing callers; `formatHomeSubtitle` keeps the date prefix with "No trips ahead"; `formatDayOffset` returns "+N" for any N ≥ 1 · gaps in the spec.
+- 2026-10-13 · MD.4 · Hand-built FAB menu (scrim at 0.86 alpha, as in the mockup) and `LargeTopAppBar` with the subtitle as the first list item · material3 1.4.0 in this BOM has no public `FloatingActionButtonMenu`/`ToggleFloatingActionButton`, and `LargeFlexibleTopAppBar` is internal.
+- 2026-10-13 · MD.4 · Home cards and hero show `from` codes with " · boards LPI" in the meta line; the highlighted DateBadge is the global next departure · matches the mockup.
+- 2026-10-13 · MD.6 · Import rows use "d MMM" dates ("3 Aug") and uppercase codes; the back arrow doesn't clear finished items, Done does; a plain M3 `LinearProgressIndicator` (track `secondaryContainer`) · matches the mockup closely enough without a custom bar.
+- 2026-10-13 · MD.7 · Class/quota and duration chips use the shared 28 dp `TagChip`; a cancelled leg shows a small "Cancelled" chip instead of strikethrough; no `StayConnector` when a leg lacks dates; "Likely return" requires non-blank city keys · consistency and a bug fix (two null stations used to match).
+- 2026-10-13 · MD.9 · Save is never blocked: it keeps `needsReview = true` until the required fields are filled. In create mode the error styling appears only after the first save attempt. The start date is no longer a separate field (it is derived from the departure date). The ViewModel gets an optional `TicketFileStore` for the banner's "Open PDF" · per §3.9; avoids an all-red empty form.
+- 2026-10-13 · MD.10 · Removed 47 string resources the redesign left unused · keep `strings.xml` honest; per-screen strings live in `strings_<area>.xml`.
+- 2026-10-13 · MD.10 · On-emulator review found and fixed: a clipped "Boarding" label (the code field is now 120 dp), a `TimePicker` wrongly inside `DatePickerDialog` (now material3 `TimePickerDialog`), and `DateBadge` clipping at 1.3× font (now a minimum size, not fixed) · visual QA on Medium_Phone API 36.
+- 2026-10-13 · tooling · Gradle on this machine needs a short TEMP (e.g. `E:\androidApps\.gtmp`): the 8.3 temp path from the user name with a space breaks Java's Unix-domain-socket pipe ("Unable to establish loopback connection") · environment workaround, no project change.
 
 ## 8. Blockers
 <!-- Append: YYYY-MM-DD · task · what is blocked · what you tried · what's needed -->
@@ -742,3 +1142,5 @@ Put real PDFs in `samples/` (gitignored) and push them with `adb push samples/ /
 - 2026-10-12 12:15 · M6.5 · Compose previews, KDoc pass, verify.ps1, lint.xml, TripDetail snackbar fix · —
 - 2026-10-12 18:50 · code review · P0 import/lint fixes; gate green (`assembleDebug testDebugUnitTest lintDebug`) · ImportManagerTest, TicketImporterTest, TripGrouperTest, EditTicketMapperTest
 - 2026-10-12 19:00 · code review · P1-7–P1-17 (ticker, orphan PDF reconcile, parser/edit/home PDF UX) · IrctcErsParserTest, JourneyRefresh
+- 2026-10-13 18:00 · MD.1–MD.9 · M3 redesign from design/ mockups: brand theme, type/shape tokens, shared components, Home/Import/Trip detail/Link sheet/Edit screens; gate green (`assembleDebug testDebugUnitTest lintDebug`, 206 tests) · StatusToneTest, DisplayTextTest, CityNamesTest, FormattersTest+, HomeUiMapperTest+, ImportRowTextTest, TripDetailUiMapperTest, LinkReturnCandidatesTest+, StatusReadbackTest, EditTicketUiStateTest
+- 2026-10-13 18:30 · MD.10 · Unused strings removed, QA.md visual checks, emulator pass (light/dark/1.3× font; Home, FAB menu, empty state, Import, Trip detail, Link sheet, Edit) with 3 UI fixes; gate green, 206 tests · —
