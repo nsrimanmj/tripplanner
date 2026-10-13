@@ -3,10 +3,19 @@
 #
 # For more details, see
 #   https://d.android.com/r/tools/r8/keep-rules
+#
+# PdfBox-Android ships its own consumer rules (reflective SecurityHandler constructors,
+# documentinterchange). Its resources load through absolute asset paths, so no
+# package-wide keep is needed.
 
-# PdfBox-Android / transitive deps (M6.3)
+# PdfBox-Android's JPXFilter references the optional JPEG 2000 decoder
+# (com.gemalto.jp2:jp2-android), which is not a dependency; JPX images fail gracefully.
 -dontwarn com.gemalto.jp2.**
--dontwarn org.bouncycastle.**
 
--keep class com.tom_roush.pdfbox.** { *; }
--keep class org.apache.pdfbox.** { *; }
+# ML Kit: MlKitInitProvider instantiates the ComponentRegistrar classes named in the merged
+# manifest <meta-data> reflectively via their no-arg constructor. firebase-components'
+# consumer rule keeps the classes but not <init>(), which R8 full mode then removes
+# (NoSuchMethodException -> TextRegistrar never registers -> OCR returns no text).
+-keep class * implements com.google.firebase.components.ComponentRegistrar {
+    <init>();
+}

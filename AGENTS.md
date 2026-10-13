@@ -56,7 +56,7 @@ A new chat session (fresh context) resumes from the PLAN.md checkboxes and logs.
 | SDK | compileSdk 37 (new DSL `compileSdk { version = release(37) }`), minSdk 28, targetSdk 37 |
 | Java target | 11 (`compileOptions`) |
 | Compose | BOM 2026.02.01, Material 3, `TripcheckerTheme` with the **indigo brand scheme** (seed `#4355B9`, light + dark; `dynamicColor` defaults to `false`). Tokens in `docs/PLAN.md` §3.10 |
-| R8 rules | `app/src/main/keepRules/rules.keep` (AGP 9 location; there is no `proguard-rules.pro`). Release has `optimization { enable = false }` |
+| R8 rules | `app/src/main/keepRules/rules.keep` (AGP 9 location; there is no `proguard-rules.pro`). Release has `optimization { enable = true }` (R8 full mode + resource shrinking; verified in `docs/RELEASE_OPTIMIZATION.md`). APK builds are split per ABI plus a universal APK |
 | Versions | all in `gradle/libs.versions.toml`. Add every new dependency there and reference it via `libs.*` |
 
 ## Tech stack

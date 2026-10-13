@@ -25,7 +25,9 @@ android {
     buildTypes {
         release {
             optimization {
-                enable = false
+                // R8 code + resource optimization (AGP 9.3+ DSL; includes the
+                // proguard-android-optimize defaults). Keep rules: src/main/keepRules.
+                enable = true
             }
         }
     }
@@ -35,6 +37,27 @@ android {
     }
     buildFeatures {
         compose = true
+    }
+    splits {
+        abi {
+            // ~90% of the native payload is ML Kit's bundled OCR pipeline, once per ABI.
+            // Emit one APK per ABI (sideload the one matching the phone, usually arm64-v8a)
+            // plus a universal APK that still runs everywhere.
+            // App Bundles split by ABI on their own, and AGP can't build a bundle while APK
+            // splits are on (issuetracker.google.com/402800800), so skip them for bundle tasks.
+            isEnable = gradle.startParameter.taskNames.none { it.contains("bundle", ignoreCase = true) }
+            reset()
+            include("arm64-v8a", "armeabi-v7a", "x86_64", "x86")
+            isUniversalApk = true
+        }
+    }
+    packaging {
+        resources {
+            // BouncyCastle (via pdfbox-android) bundles ~4 MB of post-quantum parameter
+            // tables (Picnic/SIKE). PdfBox never uses PQC; R8 strips the classes but not
+            // these Java resources.
+            excludes += "org/bouncycastle/pqc/**"
+        }
     }
     lint {
         abortOnError = true
