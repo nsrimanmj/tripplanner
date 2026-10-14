@@ -970,6 +970,42 @@ Do this after M6 and before M7. Every task means: open the matching `design/scre
 - [ ] **M7.3** A home-screen widget (Glance) for the next journey (route, time, coach/berth); tapping it opens the trip.
 - [ ] **M7.4** Export/backup: a zip containing every PDF plus `tickets.json`, saved via `CreateDocument`, and an import of that zip.
 - [ ] **M7.5** A "Re-parse all" action in a debug or settings menu that re-runs the parser on the stored `rawText` after parser improvements.
+- [x] **M7.6** Swipe-to-delete on Home list items. A horizontal end-to-start (left) swipe on a row that represents a **single ticket** asks to delete that ticket. Those rows are needs-review rows, one-way Upcoming cards and one-way Past rows. Multi-leg cards (round trip, custom) are not swipeable; their legs are deleted from Trip detail as today.
+  - Use M3 `SwipeToDismissBox` with only end-to-start enabled, an `errorContainer` background and a delete icon revealed under the row.
+  - Releasing past the threshold opens the existing delete `AlertDialog` (same copy as Trip detail's "Delete…") with explicit **Delete** (confirm) and **Cancel** buttons.
+  - Reuse the existing deletion flow: the repository's `delete(id)` removes the row and its PDF. Add no new deletion path, and keep the ViewModel → repository boundary.
+  - *Accept:*
+    - **Cancel**, dismissing the dialog, or Back resets the row to its resting position with its data and state unchanged.
+    - **Confirm** deletes the ticket and its PDF, the item leaves the list, and groups and the next-journey hero recompute (a round trip can become one-way).
+    - The swipe never deletes anything without the dialog.
+    - Previews in light and dark; a JVM test for any new pure logic; a QA checklist item added to `docs/QA.md`.
+- [x] **M7.7** Predictive Back. Support Android's Predictive Back gesture across the app, consistent with the navigation hierarchy (Home ← Import / Trip detail / Edit).
+  - Opt in with `android:enableOnBackInvokedCallback="true"` on `<application>` (this matters for API 33–35; targetSdk 36+ enables it by default).
+  - Rely on navigation-compose's built-in predictive back (the project's 2.9.x) for screen pops, and on M3 `ModalBottomSheet`'s own handling for the link-return sheet.
+  - Use `BackHandler`/`PredictiveBackHandler` only where a screen must intercept:
+    - Edit with unsaved changes shows the discard dialog instead of popping.
+    - The open Add-ticket FAB menu closes on Back instead of leaving Home.
+  - No custom back stack.
+  - *Accept (on an API 34+ device or emulator with gesture navigation):*
+    - The back swipe previews the previous screen and completes or cancels cleanly.
+    - A cancelled gesture leaves the current screen and its state (scroll, form input) intact.
+    - Back from Home closes the app with the system preview.
+    - The Edit discard dialog and the FAB-menu close still intercept Back.
+    - The share/open-with entry into Import still pops to Home.
+    - State survives rotation and process recreation.
+    - Existing tests stay green.
+- [x] **M7.8** Horizontal screen transitions. Animate navigation with directional slides inside the existing type-safe `NavHost` (`enterTransition`, `exitTransition`, `popEnterTransition`, `popExitTransition`); add no separate navigation or animation system.
+  - Forward navigation slides the new screen in from the end edge while the old one slides partly out toward the start edge. Back and pop reverse that.
+  - Use `slideIntoContainer`/`slideOutOfContainer` with `SlideDirection.Start`/`End`, which also mirror correctly in RTL, about 300 ms with M3 emphasized easing, plus a subtle fade.
+  - Do it after or together with M7.7 so pop transitions follow the predictive-back gesture.
+  - *Accept:*
+    - Forward and back are visibly opposite in direction.
+    - No flicker, blank frames or double-rendered screens.
+    - Scroll positions and ViewModel state survive (no extra ViewModel recreation).
+    - The back stack and `launchSingleTop` behaviour of Import are unchanged.
+    - Rapid double taps don't push duplicate destinations.
+    - The system "Remove animations" setting is respected.
+    - Existing tests stay green.
 
 ---
 
@@ -1151,3 +1187,6 @@ Put real PDFs in `samples/` (gitignored) and push them with `adb push samples/ /
 - 2026-10-13 18:00 · MD.1–MD.9 · M3 redesign from design/ mockups: brand theme, type/shape tokens, shared components, Home/Import/Trip detail/Link sheet/Edit screens; gate green (`assembleDebug testDebugUnitTest lintDebug`, 206 tests) · StatusToneTest, DisplayTextTest, CityNamesTest, FormattersTest+, HomeUiMapperTest+, ImportRowTextTest, TripDetailUiMapperTest, LinkReturnCandidatesTest+, StatusReadbackTest, EditTicketUiStateTest
 - 2026-10-13 18:30 · MD.10 · Unused strings removed, QA.md visual checks, emulator pass (light/dark/1.3× font; Home, FAB menu, empty state, Import, Trip detail, Link sheet, Edit) with 3 UI fixes; gate green, 206 tests · —
 - 2026-10-13 19:30 · M6.3 · Release optimization: R8 + resource shrinking on, keep rules refined via r8-analyzer, ML Kit registrar fix, BC PQC resources excluded, ABI splits + universal; universal 83.3 MB → 49.1 MB, arm64 19.0 MB; emulator smoke test of release passed · —
+- 2026-10-13 14:45 · M7.6 · Home swipe-to-delete (SwipeToDismissBox, confirm dialog, repository delete) on single-ticket rows; QA steps 18–22 · HomeSwipeDeletePolicyTest
+- 2026-10-13 14:45 · M7.7 · Predictive Back opt-in on application; existing BackHandler for Edit discard and FAB menu · —
+- 2026-10-13 14:45 · M7.8 · NavHost horizontal slide + fade transitions (300 ms emphasized easing, animator scale respected) · —

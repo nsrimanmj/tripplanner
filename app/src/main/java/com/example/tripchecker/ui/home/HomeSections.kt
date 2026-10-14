@@ -12,11 +12,14 @@ import androidx.compose.ui.unit.dp
 import com.example.tripchecker.R
 import com.example.tripchecker.ui.common.components.JoinedListDefaults
 import com.example.tripchecker.ui.common.components.SectionHeader
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.example.tripchecker.ui.home.components.HomeSubtitle
+import com.example.tripchecker.ui.home.components.HomeSwipeToDeleteBox
 import com.example.tripchecker.ui.home.components.NeedsReviewRow
 import com.example.tripchecker.ui.home.components.NextJourneyHero
 import com.example.tripchecker.ui.home.components.PastTripRow
 import com.example.tripchecker.ui.home.components.TripGroupCard
+import com.example.tripchecker.ui.theme.AppShapes
 import com.example.tripchecker.ui.theme.Dimens
 
 /** Click handlers used by the Home list sections. */
@@ -26,6 +29,7 @@ internal class HomeActions(
     val onGoToTicket: () -> Unit,
     val onShareTicket: () -> Unit,
     val onLinkReturn: (String) -> Unit,
+    val onDeleteTicket: (String) -> Unit,
 )
 
 private val HeaderToContent = 10.dp
@@ -69,11 +73,17 @@ internal fun LazyListScope.homeSections(
             )
         }
         itemsIndexed(state.needsReview, key = { _, row -> "review-${row.ticketId}" }, contentType = { _, _ -> "review" }) { index, row ->
-            NeedsReviewRow(
-                item = row,
-                onClick = { actions.onEditTicket(row.ticketId) },
+            HomeSwipeToDeleteBox(
+                enabled = HomeSwipeDeletePolicy.isSwipeableNeedsReview(),
+                onDeleteRequested = { actions.onDeleteTicket(row.ticketId) },
+                backgroundShape = RoundedCornerShape(24.dp),
                 modifier = Modifier.padding(top = if (index > 0) 8.dp else 0.dp),
-            )
+            ) {
+                NeedsReviewRow(
+                    item = row,
+                    onClick = { actions.onEditTicket(row.ticketId) },
+                )
+            }
         }
     }
 
@@ -83,12 +93,19 @@ internal fun LazyListScope.homeSections(
             SectionHeader(stringResource(R.string.upcoming), Modifier.padding(top = top, bottom = HeaderToContent))
         }
         itemsIndexed(state.upcoming, key = { _, card -> "card-${card.key}" }, contentType = { _, _ -> "card" }) { index, card ->
-            TripGroupCard(
-                card = card,
-                onOpen = { actions.onOpenTrip(card.anchorTicketId) },
-                onLinkReturn = { actions.onLinkReturn(card.anchorTicketId) },
+            val swipeable = HomeSwipeDeletePolicy.isSwipeableGroupKind(card.kind)
+            HomeSwipeToDeleteBox(
+                enabled = swipeable,
+                onDeleteRequested = { actions.onDeleteTicket(card.anchorTicketId) },
+                backgroundShape = AppShapes.extraLarge,
                 modifier = Modifier.padding(top = if (index > 0) Dimens.cardGap else 0.dp),
-            )
+            ) {
+                TripGroupCard(
+                    card = card,
+                    onOpen = { actions.onOpenTrip(card.anchorTicketId) },
+                    onLinkReturn = { actions.onLinkReturn(card.anchorTicketId) },
+                )
+            }
         }
     }
 
@@ -107,12 +124,20 @@ internal fun LazyListScope.homeSections(
                 )
             }
             itemsIndexed(month.rows, key = { _, row -> "past-${row.key}" }, contentType = { _, _ -> "past" }) { index, row ->
-                PastTripRow(
-                    trip = row,
-                    shape = JoinedListDefaults.shape(index, month.rows.size),
-                    onClick = { actions.onOpenTrip(row.anchorTicketId) },
+                val rowShape = JoinedListDefaults.shape(index, month.rows.size)
+                val swipeable = HomeSwipeDeletePolicy.isSwipeableGroupKind(row.kind)
+                HomeSwipeToDeleteBox(
+                    enabled = swipeable,
+                    onDeleteRequested = { actions.onDeleteTicket(row.anchorTicketId) },
+                    backgroundShape = rowShape,
                     modifier = Modifier.padding(top = if (index > 0) JoinedListDefaults.Gap else 0.dp),
-                )
+                ) {
+                    PastTripRow(
+                        trip = row,
+                        shape = rowShape,
+                        onClick = { actions.onOpenTrip(row.anchorTicketId) },
+                    )
+                }
             }
         }
     }

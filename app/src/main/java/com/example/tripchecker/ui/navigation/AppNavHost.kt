@@ -33,7 +33,15 @@ fun AppNavHost(
             navController.navigate(Import) { launchSingleTop = true }
         }
     }
-    NavHost(navController = navController, startDestination = Home) {
+    val navAnimDurationMs = rememberNavAnimationDurationMillis()
+    NavHost(
+        navController = navController,
+        startDestination = Home,
+        enterTransition = { appEnterTransition(navAnimDurationMs) },
+        exitTransition = { appExitTransition(navAnimDurationMs) },
+        popEnterTransition = { appPopEnterTransition(navAnimDurationMs) },
+        popExitTransition = { appPopExitTransition(navAnimDurationMs) },
+    ) {
         composable<Home> {
             val vm: HomeViewModel = viewModel(factory = container.viewModelFactory)
             HomeScreen(

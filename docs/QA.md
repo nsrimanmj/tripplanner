@@ -37,3 +37,11 @@ Place real ticket PDFs in `samples/` (gitignored). Optional: `adb push samples/ 
 15. Switch the phone to **dark theme** — every screen above stays legible, with no hard-coded light colours.
 16. Set the system font size to the largest — no clipped text; station codes and seat numbers don't wrap.
 17. TalkBack — every icon-only button announces its label ("Copy PNR", "Share ticket PDF", "Trip options", …).
+
+## Home swipe-to-delete (M7.6)
+
+18. On Home, swipe a **needs-review** row, a **one-way** upcoming card, or a **one-way** past row left (end-to-start). A red delete background appears; releasing past the threshold opens the same delete confirmation as Trip detail.
+19. Tap **Cancel** or press Back — the row stays, data unchanged.
+20. Confirm **Delete** — the ticket disappears from Home and its PDF is removed (same as checklist step 11).
+21. **Round-trip** and **custom** upcoming cards and past rows do **not** swipe; delete those legs from Trip detail.
+22. With TalkBack, use the custom **Delete** action on a swipeable row when swipe is hard to perform.

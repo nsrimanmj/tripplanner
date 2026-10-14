@@ -9,11 +9,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -60,6 +63,7 @@ fun HomeScreen(
             sharePdf = stringResource(R.string.share_pdf),
             pdfMissing = stringResource(R.string.pdf_missing),
         )
+    var pendingDeleteId by rememberSaveable { mutableStateOf<String?>(null) }
     HomeContent(
         state = state,
         snackbarHostState = snackbar,
@@ -67,6 +71,7 @@ fun HomeScreen(
         onEditTicket = onEditTicket,
         onPdfsSelected = onPdfsSelected,
         onAddManual = onAddManual,
+        onDeleteTicket = { pendingDeleteId = it },
         onGoToTicket = {
             PdfOpenFeedback.openByFileName(
                 scope = scope,
@@ -84,6 +89,24 @@ fun HomeScreen(
         },
         onLinkReturn = onLinkReturn,
     )
+    pendingDeleteId?.let { id ->
+        AlertDialog(
+            onDismissRequest = { pendingDeleteId = null },
+            title = { Text(stringResource(R.string.delete_confirm_title)) },
+            text = { Text(stringResource(R.string.delete_confirm_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteTicket(id)
+                        pendingDeleteId = null
+                    },
+                ) { Text(stringResource(R.string.delete)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDeleteId = null }) { Text(stringResource(R.string.cancel)) }
+            },
+        )
+    }
 }
 
 /** Stateless Home content: large app bar, journey list or empty state, and the Add-ticket FAB menu. */
@@ -96,6 +119,7 @@ fun HomeContent(
     onEditTicket: (String) -> Unit,
     onPdfsSelected: (List<Uri>) -> Unit,
     onAddManual: () -> Unit,
+    onDeleteTicket: (String) -> Unit = {},
     onGoToTicket: () -> Unit = {},
     onShareTicket: () -> Unit = {},
     onLinkReturn: (String) -> Unit = {},
@@ -115,6 +139,7 @@ fun HomeContent(
             onGoToTicket = onGoToTicket,
             onShareTicket = onShareTicket,
             onLinkReturn = onLinkReturn,
+            onDeleteTicket = onDeleteTicket,
         )
     val showFab = !state.isEmpty
     Box(Modifier.fillMaxSize()) {
